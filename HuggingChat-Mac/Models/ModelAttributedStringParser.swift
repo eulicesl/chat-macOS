@@ -14,8 +14,8 @@ public struct MarkdownAttributedStringParser: MarkupVisitor {
     private let isDarkMode: Bool
 
     let baseFontSize: CGFloat = NSFont.systemFont(ofSize: 14).pointSize
-    let highlighter: Highlighter = {
-        let highlighter = Highlighter()!
+    let highlighter: Highlighter? = {
+        guard let highlighter = Highlighter() else { return nil }
         highlighter.setTheme("atom-one-dark", withFont: ".AppleSystemNSFontMonospaced-Regular", ofSize: 12)
         highlighter.theme.lineSpacing = 5
         return highlighter
@@ -187,7 +187,7 @@ public struct MarkdownAttributedStringParser: MarkupVisitor {
 
     public func visitCodeBlock(_ codeBlock: CodeBlock) -> NSAttributedString {
         let result = NSMutableAttributedString(
-            attributedString: highlighter.highlight(codeBlock.code.trimmingCharacters(in: .whitespacesAndNewlines), as: codeBlock.language)
+            attributedString: highlighter?.highlight(codeBlock.code.trimmingCharacters(in: .whitespacesAndNewlines), as: codeBlock.language)
                 ?? NSAttributedString(string: codeBlock.code))
 
 //        if codeBlock.hasSuccessor {

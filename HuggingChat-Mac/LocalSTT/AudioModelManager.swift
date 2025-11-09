@@ -759,16 +759,16 @@ enum TranscriptionSource {
                     }
                 }
 
-                // TODO: Implement silence buffer purging
-//                if nextBufferSeconds > 30 {
-//                    // This is a completely silent segment of 30s, so we can purge the audio and confirm anything pending
-//                    lastConfirmedSegmentEndSeconds = 0
-//                    whisperKit.audioProcessor.purgeAudioSamples(keepingLast: 2 * WhisperKit.sampleRate) // keep last 2s to include VAD overlap
-//                    currentBuffer = whisperKit.audioProcessor.audioSamples
-//                    lastBufferSize = 0
-//                    confirmedSegments.append(contentsOf: unconfirmedSegments)
-//                    unconfirmedSegments = []
-//                }
+                // Implement silence buffer purging to prevent memory buildup
+                if nextBufferSeconds > 30 {
+                    // This is a completely silent segment of 30s, so we can purge the audio and confirm anything pending
+                    lastConfirmedSegmentEndSeconds = 0
+                    whisperKit.audioProcessor.purgeAudioSamples(keepingLast: 2 * WhisperKit.sampleRate) // keep last 2s to include VAD overlap
+                    currentBuffer = whisperKit.audioProcessor.audioSamples
+                    lastBufferSize = 0
+                    confirmedSegments.append(contentsOf: unconfirmedSegments)
+                    unconfirmedSegments = []
+                }
 
                 // Sleep for 100ms and check the next buffer
                 try await Task.sleep(nanoseconds: 100_000_000)

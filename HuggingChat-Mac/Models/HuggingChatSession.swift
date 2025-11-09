@@ -25,11 +25,7 @@ import AuthenticationServices
     private var cancellables: [AnyCancellable] = []
 
     init() {
-        let cookies = HTTPCookieStorage.shared.cookies!
-        
-        for cookie in cookies {
-            print("\(cookie.name): \(cookie.value)")
-        }
+        // Session initialization - cookies are accessed securely via hfChatToken property
     }
     func refreshLoginState() {
         NetworkService.getCurrentUser()

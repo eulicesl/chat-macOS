@@ -4,6 +4,17 @@
 <dict>
 	<key>ATSApplicationFontsPath</key>
 	<string>Fonts</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>HuggingChat uses your microphone to transcribe speech for voice input to AI models.</string>
+	<key>NSAccessibilityFeaturesUsageDescription</key>
+	<string>HuggingChat reads content from your screen to provide context-aware AI assistance when requested.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>HuggingChat connects to AI model services to process your requests and provide responses.</string>
+	<key>NSBonjourServiceTypes</key>
+	<array>
+		<string>_http._tcp</string>
+		<string>_https._tcp</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

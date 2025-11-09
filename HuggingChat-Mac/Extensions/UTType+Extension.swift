@@ -8,9 +8,15 @@
 import UniformTypeIdentifiers
 
 extension UTType {
-    static let mlpackage = UTType(filenameExtension: "mlpackage", conformingTo: .item)!
-    static let mlmodelc = UTType(filenameExtension: "mlmodelc", conformingTo: .item)!
-    static let gguf = UTType(filenameExtension: "gguf", conformingTo: .data)!
+    static var mlpackage: UTType {
+        UTType(filenameExtension: "mlpackage", conformingTo: .item) ?? .item
+    }
+    static var mlmodelc: UTType {
+        UTType(filenameExtension: "mlmodelc", conformingTo: .item) ?? .item
+    }
+    static var gguf: UTType {
+        UTType(filenameExtension: "gguf", conformingTo: .data) ?? .data
+    }
 }
 
 

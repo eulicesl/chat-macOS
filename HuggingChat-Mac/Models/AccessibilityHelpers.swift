@@ -86,7 +86,9 @@ class VSCodeReader {
     }
     
     private func getWindowContent(port: Int) async throws -> VSCodeWindow {
-        let url = URL(string: "http://127.0.0.1:\(port)")!
+        guard let url = URL(string: "http://127.0.0.1:\(port)") else {
+            throw NSError(domain: "VSCodeReader", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid localhost URL"])
+        }
         let (data, _) = try await URLSession.shared.data(from: url)
         let decoder = JSONDecoder()
         return try decoder.decode(VSCodeWindow.self, from: data)

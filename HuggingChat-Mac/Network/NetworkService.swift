@@ -251,24 +251,39 @@ final class PostStream: NSObject, URLSessionDelegate, URLSessionDataDelegate {
         request.setValue("\(BASE_URL)", forHTTPHeaderField: "Origin")
         
         var data = Data()
-        
+
         // Add the files. Add tools Document Parser if supported.
-        // TODO: Limit to 10MB per file otherwise error out
+        // File size limit: 10MB per file
+        let maxFileSize: Int64 = 10 * 1024 * 1024 // 10MB in bytes
+
         if let filePaths = reqBody.files {
             for (_, filePath) in filePaths.enumerated() {
                 let fileURL = URL(fileURLWithPath: filePath)
                 let filename = fileURL.lastPathComponent
+
                 do {
+                    // Check file size before reading
+                    let attributes = try FileManager.default.attributesOfItem(atPath: filePath)
+                    let fileSize = attributes[.size] as? Int64 ?? 0
+
+                    if fileSize > maxFileSize {
+                        let error = HFError.customError("File '\(filename)' exceeds the 10MB size limit (\(String(format: "%.2f", Double(fileSize) / 1024 / 1024))MB)")
+                        return Fail(outputType: Data.self, failure: error).eraseToAnyPublisher()
+                    }
+
                     let fileData = try Data(contentsOf: fileURL)
                     let base64String = fileData.base64EncodedString()
-                    
+
                     data.append("--\(boundary)\r\n".data(using: .utf8)!)
                     data.append("Content-Disposition: form-data; name=\"files\"; filename=\"base64;\(filename)\"\r\n".data(using: .utf8)!)
                     data.append("Content-Type: \(mimeType(for: fileURL))\r\n\r\n".data(using: .utf8)!)
                     data.append(base64String.data(using: .utf8)!)
                     data.append("\r\n".data(using: .utf8)!)
+                } catch let error as HFError {
+                    return Fail(outputType: Data.self, failure: error).eraseToAnyPublisher()
                 } catch {
-                    print("Error reading file: \(error)")
+                    let hfError = HFError.customError("Error reading file '\(filename)': \(error.localizedDescription)")
+                    return Fail(outputType: Data.self, failure: hfError).eraseToAnyPublisher()
                 }
             }
         }

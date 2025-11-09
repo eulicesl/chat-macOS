@@ -164,11 +164,24 @@ enum ConversationState: Equatable {
         var trimmedText = ""
         if useContext {
             if let contextAppSelectedText = contextAppSelectedText {
-                trimmedText += "Selected Text: ```\(contextAppSelectedText)```"
+                // Truncate selected text to 5000 characters max
+                let maxSelectedLength = 5000
+                let truncatedSelected = contextAppSelectedText.count > maxSelectedLength
+                    ? String(contextAppSelectedText.prefix(maxSelectedLength)) + "...[truncated]"
+                    : contextAppSelectedText
+                trimmedText += "Selected Text: ```\(truncatedSelected)```"
             }
             if let contextAppFullText = contextAppFullText {
-                // TODO: Truncate full context if needed
-                trimmedText += "\n\nFull Text:```\(contextAppFullText)```"
+                // Truncate full context to 3000 characters from the end (most recent content)
+                let maxFullLength = 3000
+                let truncatedFull: String
+                if contextAppFullText.count > maxFullLength {
+                    let startIndex = contextAppFullText.index(contextAppFullText.endIndex, offsetBy: -maxFullLength)
+                    truncatedFull = "...[truncated]\n" + String(contextAppFullText[startIndex...])
+                } else {
+                    truncatedFull = contextAppFullText
+                }
+                trimmedText += "\n\nFull Text:```\(truncatedFull)```"
             }
         }
         
@@ -343,8 +356,11 @@ enum ConversationState: Equatable {
     }
     
     func formatContext() {
-        // TODO: Truncate contextAppFullText from start to 3000 characters.
-        
+        // Truncate contextAppFullText from start to 3000 characters to prevent context overflow
+        if let contextText = contextAppFullText, contextText.count > 3000 {
+            let startIndex = contextText.index(contextText.endIndex, offsetBy: -3000)
+            contextAppFullText = "..." + String(contextText[startIndex...])
+        }
     }
     
     func clearContext() {
