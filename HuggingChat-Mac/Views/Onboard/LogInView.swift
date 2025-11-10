@@ -95,6 +95,27 @@ struct LogInView: View {
             .padding()
         }
         .ignoresSafeArea(.container, edges: .top)
+        .sheet(isPresented: Binding(
+            get: { coordinator.showWebAuth },
+            set: { coordinator.showWebAuth = $0 }
+        )) {
+            if let authURL = coordinator.authURL {
+                WebAuthContainerView(url: authURL)
+                    .environment(coordinator)
+            }
+        }
+        .alert("Error", isPresented: Binding(
+            get: { coordinator.showError },
+            set: { coordinator.showError = $0 }
+        )) {
+            Button("OK") {
+                coordinator.showError = false
+            }
+        } message: {
+            if let errorMessage = coordinator.errorMessage {
+                Text(errorMessage)
+            }
+        }
     }
     
     private func generateURL(from location: String, appleToken: String? = nil) -> URL? {

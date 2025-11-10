@@ -9,64 +9,65 @@ import SwiftUI
 import Combine
 
 @Observable class CoordinatorModel {
-    
+
+    var authURL: URL?
+    var showWebAuth = false
+    var errorMessage: String?
+    var showError = false
+
     private var cancellables = Set<AnyCancellable>()
-    
+
     func signin() {
         NetworkService.loginChat()
             .receive(on: DispatchQueue.main)
-            .sink { completion in
+            .sink { [weak self] completion in
             switch completion {
             case .failure(let error):
-                print(error.localizedDescription) // TODO: Handle error
-//                self?.showError(error: error)
+                self?.errorMessage = "Sign in failed: \(error.localizedDescription)"
+                self?.showError = true
             case .finished: break
             }
         } receiveValue: { [weak self] loginChat in
             guard let url = self?.generateURL(from: loginChat.location) else { return }
-            NSWorkspace.shared.open(url) // TODO: Should be a WKWebView
+            // Use secure in-app WebView for OAuth instead of system browser
+            self?.authURL = url
+            self?.showWebAuth = true
         }.store(in: &cancellables)
     }
     
     func appleSignin(token: String) {
         NetworkService.loginChat()
             .receive(on: DispatchQueue.main)
-            .sink { completion in
+            .sink { [weak self] completion in
             switch completion {
             case .failure(let error):
-                print(error.localizedDescription)
-//                self?.showError(error: error)
+                self?.errorMessage = "Apple Sign in failed: \(error.localizedDescription)"
+                self?.showError = true
             case .finished: break
             }
         } receiveValue: { [weak self] loginChat in
             guard let url = self?.generateURL(from: loginChat.location, appleToken: token) else { return }
-            NSWorkspace.shared.open(url)
+            // Use secure in-app WebView for OAuth
+            self?.authURL = url
+            self?.showWebAuth = true
         }.store(in: &cancellables)
     }
     
     func validateSignup(code: String, state: String) {
-//        DispatchQueue.main.async {
-//            self.delegate?.dismissController(animated: true)
-//        }
         NetworkService.validateSignIn(code: code, state: state)
             .receive(on: DispatchQueue.main)
-            .sink { completion in
+            .sink { [weak self] completion in
             switch completion {
             case .finished:
-                print("Connected")
-//                self?.showInfo(info: "Connected")
+                // Successfully validated
+                break
             case .failure(let error):
-                print("Could not validate sign in", error.localizedDescription)
-//                self?.showError(error: error)
+                self?.errorMessage = "Could not validate sign in: \(error.localizedDescription)"
+                self?.showError = true
             }
         } receiveValue: { _ in
-            print("SignIn Validated")
             HuggingChatSession.shared.refreshLoginState()
             UserDefaults.standard.set(true, forKey: "userLoggedIn")
-            
-//            self?.conversationViewModel.reset()
-//            self?.loadMostRecentConversation()
-//            self?.delegate?.removeRequestLoginPopupIfNeeded()
         }.store(in: &cancellables)
     }
     

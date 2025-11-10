@@ -119,15 +119,15 @@ enum ConversationState: Equatable {
             }
             .sink { completion in
                 switch completion {
-                case .finished: break
+                case .finished:
+                    AppLogger.debug("Conversation loaded successfully", category: .conversation)
                 case .failure(let error):
-                    print("Error loading conversation: \(error.localizedDescription)")
+                    AppLogger.error("Error loading conversation", error: error, category: .conversation)
                 }
             } receiveValue: { [weak self] messages in
                 self?.messages = messages
-//                self?.internalDelegate?.reloadData()
-//                self?.internalDelegate?.scrollToBottom(animated: false)
                 self?.state = .loaded
+                AppLogger.info("Loaded \(messages.count) messages", category: .conversation)
             }.store(in: &cancellables)
     }
     

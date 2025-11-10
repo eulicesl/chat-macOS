@@ -53,8 +53,7 @@ final class Conversation: Decodable, Identifiable {
             self.messages = messages
             self.areMessagesLoaded = true
         } catch {
-            //ToDo: Handle Error
-//            print("error: \(error)")
+            AppLogger.warning("Failed to decode messages for conversation, will load lazily", category: .conversation)
             self.messages = []
             self.areMessagesLoaded = false
         }
