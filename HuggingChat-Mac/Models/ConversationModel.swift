@@ -13,7 +13,17 @@ enum ConversationState: Equatable {
 }
 
 @Observable final class ConversationViewModel {
-    
+
+    // MARK: - Constants
+
+    /// Maximum length for selected text context (characters)
+    private static let maxSelectedTextLength = 5000
+
+    /// Maximum length for full text context (characters)
+    private static let maxFullTextLength = 3000
+
+    // MARK: - Properties
+
     var isInteracting = false
     var isMultimodal: Bool = false
     var isTools: Bool = false
@@ -164,27 +174,15 @@ enum ConversationState: Equatable {
         var trimmedText = ""
         if useContext {
             if let contextAppSelectedText = contextAppSelectedText {
-                // Truncate selected text to 5000 characters max
-                let maxSelectedLength = 5000
-                let truncatedSelected = contextAppSelectedText.count > maxSelectedLength
-                    ? String(contextAppSelectedText.prefix(maxSelectedLength)) + "...[truncated]"
-                    : contextAppSelectedText
+                let truncatedSelected = truncateSelectedText(contextAppSelectedText)
                 trimmedText += "Selected Text: ```\(truncatedSelected)```"
             }
             if let contextAppFullText = contextAppFullText {
-                // Truncate full context to 3000 characters from the end (most recent content)
-                let maxFullLength = 3000
-                let truncatedFull: String
-                if contextAppFullText.count > maxFullLength {
-                    let startIndex = contextAppFullText.index(contextAppFullText.endIndex, offsetBy: -maxFullLength)
-                    truncatedFull = "...[truncated]\n" + String(contextAppFullText[startIndex...])
-                } else {
-                    truncatedFull = contextAppFullText
-                }
+                let truncatedFull = truncateFullText(contextAppFullText)
                 trimmedText += "\n\nFull Text:```\(truncatedFull)```"
             }
         }
-        
+
         trimmedText += text.trimmingCharacters(in: .whitespaces)
         
         // TODO: Add files here
@@ -356,17 +354,39 @@ enum ConversationState: Equatable {
     }
     
     func formatContext() {
-        // Truncate contextAppFullText from start to 3000 characters to prevent context overflow
-        if let contextText = contextAppFullText, contextText.count > 3000 {
-            let startIndex = contextText.index(contextText.endIndex, offsetBy: -3000)
-            contextAppFullText = "..." + String(contextText[startIndex...])
+        // Truncate contextAppFullText to prevent context overflow
+        if let contextText = contextAppFullText {
+            contextAppFullText = truncateFullText(contextText)
         }
     }
-    
+
     func clearContext() {
         contextAppName = nil
         contextAppSelectedText = nil
         contextAppFullText = nil
     }
-    
+
+    // MARK: - Private Helpers
+
+    /// Truncates selected text to maximum allowed length
+    /// - Parameter text: The selected text to truncate
+    /// - Returns: Truncated text with ellipsis if needed
+    private func truncateSelectedText(_ text: String) -> String {
+        guard text.count > Self.maxSelectedTextLength else {
+            return text
+        }
+        return String(text.prefix(Self.maxSelectedTextLength)) + "...[truncated]"
+    }
+
+    /// Truncates full text context, keeping the most recent content (from the end)
+    /// - Parameter text: The full text to truncate
+    /// - Returns: Truncated text with ellipsis if needed
+    private func truncateFullText(_ text: String) -> String {
+        guard text.count > Self.maxFullTextLength else {
+            return text
+        }
+        let startIndex = text.index(text.endIndex, offsetBy: -Self.maxFullTextLength)
+        return "...[truncated]\n" + String(text[startIndex...])
+    }
+
 }

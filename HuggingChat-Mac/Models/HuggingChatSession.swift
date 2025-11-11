@@ -19,6 +19,9 @@ import AuthenticationServices
         didSet {
             if let clientID = clientID {
                 KeychainService.shared.save(clientID, for: .clientID)
+            } else {
+                // When set to nil (during logout), delete from Keychain
+                KeychainService.shared.delete(for: .clientID)
             }
         }
     }
@@ -26,6 +29,9 @@ import AuthenticationServices
         didSet {
             if let token = token {
                 KeychainService.shared.save(token, for: .authToken)
+            } else {
+                // When set to nil (during logout), delete from Keychain
+                KeychainService.shared.delete(for: .authToken)
             }
         }
     }

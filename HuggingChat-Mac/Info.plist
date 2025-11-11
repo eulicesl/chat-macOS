@@ -5,7 +5,7 @@
 	<key>ATSApplicationFontsPath</key>
 	<string>Fonts</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>HuggingChat uses your microphone to transcribe speech for voice input to AI models.</string>
+	<string>HuggingChat accesses your microphone only when you activate voice input mode to transcribe your speech for AI conversations. Microphone access is temporary and ends when you stop voice input.</string>
 	<key>NSAccessibilityFeaturesUsageDescription</key>
 	<string>HuggingChat reads content from your screen to provide context-aware AI assistance when requested.</string>
 	<key>NSLocalNetworkUsageDescription</key>

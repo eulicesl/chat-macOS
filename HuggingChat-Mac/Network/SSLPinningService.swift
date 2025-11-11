@@ -23,14 +23,33 @@ final class SSLPinningService: NSObject {
     /// SHA256 hashes of known HuggingFace certificate public keys
     /// These should be updated when HuggingFace rotates their certificates
     /// To get current hash: openssl s_client -connect huggingface.co:443 | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+    ///
+    /// ⚠️ SECURITY WARNING: The placeholder hashes below will reject ALL certificates in production!
+    /// You MUST replace these with actual HuggingFace certificate hashes before deploying to production.
+    /// Failure to do so will result in all network requests being blocked by SSL pinning.
+    ///
+    /// To disable SSL pinning in development:
+    /// - Debug builds: Set UserDefaults key "SSLPinningEnabled" to false
+    /// - Release builds: SSL pinning is always enabled (see isEnabled property)
     private let trustedPublicKeyHashes: Set<String> = [
-        // HuggingFace primary certificate (example - should be updated with actual)
-        // In production, obtain actual certificate hashes from HuggingFace
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",  // Placeholder
+        // HuggingFace primary certificate
+        // TODO: REPLACE WITH ACTUAL CERTIFICATE HASH BEFORE PRODUCTION DEPLOYMENT
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",  // ⚠️ PLACEHOLDER - MUST UPDATE
 
         // Backup certificates for rotation
-        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",  // Placeholder
+        // TODO: ADD BACKUP CERTIFICATE HASH FOR CERTIFICATE ROTATION SUPPORT
+        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",  // ⚠️ PLACEHOLDER - MUST UPDATE
     ]
+
+    /// Validates that certificate hashes have been updated from placeholders
+    /// - Returns: True if using production certificates, false if using placeholders
+    private var hasValidCertificates: Bool {
+        let placeholders: Set<String> = [
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="
+        ]
+        return trustedPublicKeyHashes.isDisjoint(with: placeholders)
+    }
 
     /// Domains that require SSL pinning
     private let pinnedDomains: Set<String> = [
@@ -67,6 +86,18 @@ final class SSLPinningService: NSObject {
         guard pinnedDomains.contains(where: { host.hasSuffix($0) }) else {
             // For non-pinned domains, use default evaluation
             return false
+        }
+
+        // Check if SSL pinning is enabled (allows disabling in debug builds)
+        guard isEnabled else {
+            AppLogger.debug("SSL pinning disabled for \(host) - using default validation", category: .network)
+            // Use default system validation when pinning is disabled
+            return false
+        }
+
+        // Warn if using placeholder certificates
+        if !hasValidCertificates {
+            AppLogger.warning("⚠️ SSL Pinning is using PLACEHOLDER certificates - update before production!", category: .network)
         }
 
         // Validate the certificate

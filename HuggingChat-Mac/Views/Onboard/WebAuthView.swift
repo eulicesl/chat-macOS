@@ -8,9 +8,10 @@
 import SwiftUI
 import WebKit
 
-/// Secure in-app OAuth authentication view using WKWebView
+/// Secure in-app OAuth authentication view using WKWebView with CSRF protection
 struct WebAuthView: NSViewRepresentable {
     let url: URL
+    let expectedState: String  // Expected state parameter for CSRF protection
     let onCallback: (String, String) -> Void
     let onError: (Error) -> Void
 
@@ -34,6 +35,21 @@ struct WebAuthView: NSViewRepresentable {
         Coordinator(parent: self)
     }
 
+    /// Generate a cryptographically secure random state parameter for CSRF protection
+    /// - Returns: A random Base64-encoded string
+    static func generateSecureState() -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        let result = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        guard result == errSecSuccess else {
+            // Fallback to UUID if SecRandomCopyBytes fails
+            return UUID().uuidString
+        }
+        return Data(bytes).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
     class Coordinator: NSObject, WKNavigationDelegate {
         let parent: WebAuthView
 
@@ -54,8 +70,28 @@ struct WebAuthView: NSViewRepresentable {
                     let code = queryItems.first(where: { $0.name == "code" })?.value ?? ""
                     let state = queryItems.first(where: { $0.name == "state" })?.value ?? ""
 
+                    // CSRF Protection: Validate state parameter matches expected value
                     if !code.isEmpty && !state.isEmpty {
-                        parent.onCallback(code, state)
+                        if state == parent.expectedState {
+                            AppLogger.info("OAuth callback state validated successfully", category: .auth)
+                            parent.onCallback(code, state)
+                        } else {
+                            AppLogger.error("OAuth CSRF validation failed - state mismatch. Expected: \(parent.expectedState), Got: \(state)", category: .auth)
+                            let error = NSError(
+                                domain: "WebAuthView",
+                                code: 403,
+                                userInfo: [NSLocalizedDescriptionKey: "OAuth state validation failed. Possible CSRF attack detected."]
+                            )
+                            parent.onError(error)
+                        }
+                    } else {
+                        AppLogger.warning("OAuth callback missing required parameters (code or state)", category: .auth)
+                        let error = NSError(
+                            domain: "WebAuthView",
+                            code: 400,
+                            userInfo: [NSLocalizedDescriptionKey: "Invalid OAuth callback - missing parameters"]
+                        )
+                        parent.onError(error)
                     }
                 }
 
@@ -79,6 +115,7 @@ struct WebAuthView: NSViewRepresentable {
 /// Container view for presenting the WebAuthView in a window
 struct WebAuthContainerView: View {
     let url: URL
+    let expectedState: String  // Pass expected state for CSRF validation
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(CoordinatorModel.self) private var coordinator
     @State private var errorMessage: String?
@@ -102,9 +139,10 @@ struct WebAuthContainerView: View {
             .padding()
             .background(Color(NSColor.windowBackgroundColor))
 
-            // WebView
+            // WebView with CSRF protection
             WebAuthView(
                 url: url,
+                expectedState: expectedState,
                 onCallback: { code, state in
                     coordinator.validateSignup(code: code, state: state)
                     dismissWindow()
@@ -130,8 +168,11 @@ struct WebAuthContainerView: View {
 
 #Preview {
     if let url = URL(string: "https://huggingface.co/chat/login") {
-        WebAuthContainerView(url: url)
-            .environment(CoordinatorModel())
-            .frame(width: 600, height: 700)
+        WebAuthContainerView(
+            url: url,
+            expectedState: WebAuthView.generateSecureState()
+        )
+        .environment(CoordinatorModel())
+        .frame(width: 600, height: 700)
     }
 }

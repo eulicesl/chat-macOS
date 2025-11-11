@@ -39,6 +39,13 @@ Tests for structured logging:
 
 ## Total Test Count: 54 Tests
 
+**Note on Test Counting:**
+- Each `func test...()` method counts as one test
+- Performance tests using `measure {}` blocks count as individual tests
+- Example: `testLoggerPerformance()` with a `measure {}` block = 1 test
+- The 54 total includes all test methods across all test files
+- Test breakdown: 15 (Keychain) + 16 (UserAgent) + 23 (AppLogger) = 54 tests
+
 ## Code Coverage Goals
 
 - **Target:** 60% overall code coverage

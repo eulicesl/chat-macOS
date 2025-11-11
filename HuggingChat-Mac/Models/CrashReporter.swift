@@ -135,18 +135,34 @@ final class CrashReporter {
 
     /// Set user context for crash reports
     /// - Parameters:
-    ///   - userID: User identifier
-    ///   - email: User email (optional)
+    ///   - userID: User identifier (non-PII recommended, e.g., hashed ID)
+    ///   - email: User email (optional - requires explicit user consent for GDPR/CCPA compliance)
     ///   - username: Username (optional)
-    func setUser(userID: String?, email: String? = nil, username: String? = nil) {
+    ///   - hasEmailConsent: Whether user has explicitly consented to email collection (required if email is provided)
+    ///
+    /// ⚠️ PRIVACY WARNING: Storing email addresses may require explicit user consent under GDPR/CCPA.
+    /// Only provide email if the user has explicitly opted in to crash report diagnostics.
+    func setUser(userID: String?, email: String? = nil, username: String? = nil, hasEmailConsent: Bool = false) {
         configuration.userID = userID
 
         var userContext: [String: Any] = [:]
         if let userID = userID { userContext["id"] = userID }
-        if let email = email { userContext["email"] = email }
+
+        // Only include email if explicit consent was granted
+        if let email = email {
+            if hasEmailConsent {
+                userContext["email"] = email
+                AppLogger.info("User email added to crash reports (with consent)", category: .general)
+            } else {
+                AppLogger.warning("Email provided to crash reporter without consent - omitting for privacy compliance", category: .general)
+            }
+        }
+
         if let username = username { userContext["username"] = username }
 
         configuration.metadata["user"] = userContext
+        configuration.metadata["email_consent"] = hasEmailConsent
+
         AppLogger.info("Updated crash reporter user context", category: .general)
     }
 
