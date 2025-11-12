@@ -99,6 +99,7 @@ struct DetailContent: View {
     
     // STT
     @State private var isTranscribing: Bool = false
+    @State private var showSummary: Bool = false
     var isLocal: Bool
     
     var body: some View {
@@ -208,6 +209,31 @@ struct DetailContent: View {
         .onChange(of: audioModelManager.isTranscriptionComplete) { old, new in
             if audioModelManager.isTranscriptionComplete && audioModelManager.transcriptionSource == .chat {
                 prompt += audioModelManager.getFullTranscript()
+
+                // Show summary if available and using SpeechAnalyzer
+                if audioModelManager.transcriptionEngine == .speechAnalyzer && !audioModelManager.currentSummary.isEmpty {
+                    showSummary = true
+                }
+            }
+        }
+        .overlay {
+            if showSummary {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation {
+                                showSummary = false
+                            }
+                        }
+
+                    TranscriptionSummaryView(
+                        summary: audioModelManager.currentSummary,
+                        transcript: audioModelManager.getFullTranscript(),
+                        isShowing: $showSummary
+                    )
+                    .transition(.scale.combined(with: .opacity))
+                }
             }
         }
     }

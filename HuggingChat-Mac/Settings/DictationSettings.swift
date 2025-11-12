@@ -10,15 +10,39 @@ import WhisperKit
 import KeyboardShortcuts
 
 struct DictationSettings: View {
-    
+
     @Environment(AudioModelManager.self) private var audioModelManager
     @AppStorage("selectedAudioModel") private var selectedModel: String = "None"
     @AppStorage("selectedAudioInput") private var selectedAudioInput: String = "None"
     @AppStorage("smartDictation") private var smartDictation: Bool = false
     @AppStorage("useLocalCleanup") private var useLocalCleanup: Bool = false
+    @AppStorage("useSpeechAnalyzer") private var useSpeechAnalyzer: Bool = true
+    @AppStorage("autoSummarize") private var autoSummarize: Bool = true
     
     var body: some View {
         Form {
+            Section(content: {
+                Toggle("Use Apple SpeechAnalyzer (macOS 15+)", isOn: $useSpeechAnalyzer)
+                    .onChange(of: useSpeechAnalyzer) { _, newValue in
+                        audioModelManager.transcriptionEngine = newValue ? .speechAnalyzer : .whisperKit
+                    }
+
+                if useSpeechAnalyzer && SummarizationService.isAvailable() {
+                    Toggle("Auto-summarize transcriptions", isOn: $autoSummarize)
+                }
+            }, header: {
+                Text("Transcription Engine")
+            }, footer: {
+                Text(useSpeechAnalyzer ?
+                    "Uses Apple's on-device SpeechAnalyzer for faster, more accurate transcription with automatic summarization using Foundation Models. Requires macOS 15 or later." :
+                    "Uses WhisperKit for on-device transcription. Compatible with older macOS versions.")
+                    .font(.footnote)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(nil)
+                    .foregroundColor(.secondary)
+            })
+
             Section(content: {
                 LabeledContent("Model Name:", content: {
                     HStack {
@@ -66,15 +90,16 @@ struct DictationSettings: View {
                 })
                 
             }, header: {
-                Text("Dictation Model")
+                Text("WhisperKit Model (Legacy)")
             }, footer: {
-                Text("Transcription will run on your local device, privately and securely. The first time you use it, it may take a few minutes to load the model.")
+                Text("WhisperKit transcription runs on your local device, privately and securely. The first time you use it, it may take a few minutes to load the model. Only used when SpeechAnalyzer is disabled.")
                     .font(.footnote)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .multilineTextAlignment(.leading)
                     .lineLimit(nil)
                     .foregroundColor(.secondary)
             })
+            .disabled(useSpeechAnalyzer)
             
             Section(content: {
                 KeyboardShortcuts.Recorder("Global Transcription Shortcut:", name: .showTranscriptionPanel)

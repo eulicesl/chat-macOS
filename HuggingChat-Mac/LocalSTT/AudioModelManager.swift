@@ -22,16 +22,23 @@ enum TranscriptionSource {
     case none
 }
 
+enum TranscriptionEngine {
+    case whisperKit
+    case speechAnalyzer
+}
+
 @Observable class AudioModelManager {
-    
+
     var whisperKit: WhisperKit? = nil
+    var speechAnalyzer: SpeechAnalyzerService? = nil
+    var summarizationService: SummarizationService? = nil
     var audioDevices: [AudioDevice]? = nil
     var isRecording: Bool = false
     var isTranscribing: Bool = false
     var currentText: String = ""
     var currentChunks: [Int: (chunkText: [String], fallbacks: Int)] = [:]
     var modelStorage: String = "huggingface/models/argmaxinc/whisperkit-coreml"
-    
+
     var modelState: ModelState = .unloaded
     var localModels: [String] = []
     var localModelPath: String = ""
@@ -42,6 +49,9 @@ enum TranscriptionSource {
     var silenceThreshold: Double = 0.3
     var isTranscriptionComplete: Bool = false
     var transcriptionSource: TranscriptionSource = .none
+    var transcriptionEngine: TranscriptionEngine = .speechAnalyzer // Default to new engine
+    var currentSummary: String = ""
+    var isSummarizing: Bool = false
     
     var selectedAudioInput: String {
         get {
@@ -114,15 +124,41 @@ enum TranscriptionSource {
     var availableLocalModels: [LocalModel] = [
         LocalModel(id: WhisperKit.recommendedModels().default, displayName: WhisperKit.recommendedModels().default.capitalized, size: "", hfURL: "argmaxinc/whisperkit-coreml/\(WhisperKit.recommendedModels().default)", localURL: nil, icon: "waveform.badge.mic", modelType: .stt)
     ]
+
+    // MARK: Initialization
+    init() {
+        // Initialize SpeechAnalyzer service
+        speechAnalyzer = SpeechAnalyzerService()
+        summarizationService = SummarizationService()
+
+        // Check if SpeechAnalyzer is available
+        if SummarizationService.isAvailable() {
+            transcriptionEngine = .speechAnalyzer
+            modelState = .loaded
+        } else {
+            transcriptionEngine = .whisperKit
+        }
+    }
  
    // MARK: Model Management
     func resetState() {
         transcribeTask?.cancel()
         isRecording = false
         isTranscribing = false
-        whisperKit?.audioProcessor.stopRecording()
+
+        // Reset WhisperKit if using it
+        if transcriptionEngine == .whisperKit {
+            whisperKit?.audioProcessor.stopRecording()
+        }
+
+        // Reset SpeechAnalyzer if using it
+        if transcriptionEngine == .speechAnalyzer {
+            speechAnalyzer?.resetState()
+        }
+
         currentText = ""
         currentChunks = [:]
+        currentSummary = ""
 
         pipelineStart = Double.greatestFiniteMagnitude
         firstTokenTime = Double.greatestFiniteMagnitude
@@ -478,39 +514,65 @@ enum TranscriptionSource {
 
     func startRecording(_ loop: Bool, source: TranscriptionSource = .none) {
         transcriptionSource = source
-        if let audioProcessor = whisperKit?.audioProcessor {
+
+        if transcriptionEngine == .speechAnalyzer {
+            // Use SpeechAnalyzer for transcription
             Task(priority: .userInitiated) {
-                guard await AudioProcessor.requestRecordPermission() else {
-                    print("Microphone access was not granted.")
-                    return
-                }
-                
-                setupMicrophone()
-                
-                var deviceId: DeviceID?
-                if self.selectedAudioInput != "None",
-                   let devices = self.audioDevices,
-                   let device = devices.first(where: { $0.name == selectedAudioInput }) {
-                    deviceId = device.id
-                }
+                do {
+                    try await speechAnalyzer?.startRecording()
 
-                // There is no built-in microphone
-                if deviceId == nil {
-                    throw WhisperError.microphoneUnavailable()
-                }
-
-                try? audioProcessor.startRecordingLive(inputDeviceID: deviceId) { _ in
-                    DispatchQueue.main.async { [self] in
-                        self.bufferEnergy = self.whisperKit?.audioProcessor.relativeEnergy ?? []
-                        bufferSeconds = Double(self.whisperKit?.audioProcessor.audioSamples.count ?? 0) / Double(WhisperKit.sampleRate)
+                    await MainActor.run {
+                        isRecording = true
+                        isTranscribing = true
                     }
-                }
 
-                // Delay the timer start by 1 second
-                isRecording = true
-                isTranscribing = true
-                if loop {
-                    realtimeLoop()
+                    // Monitor SpeechAnalyzer state
+                    startSpeechAnalyzerMonitoring()
+                } catch {
+                    print("SpeechAnalyzer error: \(error.localizedDescription)")
+                    // Fallback to WhisperKit if SpeechAnalyzer fails
+                    await MainActor.run {
+                        transcriptionEngine = .whisperKit
+                    }
+                    startRecording(loop, source: source)
+                }
+            }
+        } else {
+            // Use WhisperKit for transcription
+            if let audioProcessor = whisperKit?.audioProcessor {
+                Task(priority: .userInitiated) {
+                    guard await AudioProcessor.requestRecordPermission() else {
+                        print("Microphone access was not granted.")
+                        return
+                    }
+
+                    setupMicrophone()
+
+                    var deviceId: DeviceID?
+                    if self.selectedAudioInput != "None",
+                       let devices = self.audioDevices,
+                       let device = devices.first(where: { $0.name == selectedAudioInput }) {
+                        deviceId = device.id
+                    }
+
+                    // There is no built-in microphone
+                    if deviceId == nil {
+                        throw WhisperError.microphoneUnavailable()
+                    }
+
+                    try? audioProcessor.startRecordingLive(inputDeviceID: deviceId) { _ in
+                        DispatchQueue.main.async { [self] in
+                            self.bufferEnergy = self.whisperKit?.audioProcessor.relativeEnergy ?? []
+                            bufferSeconds = Double(self.whisperKit?.audioProcessor.audioSamples.count ?? 0) / Double(WhisperKit.sampleRate)
+                        }
+                    }
+
+                    // Delay the timer start by 1 second
+                    isRecording = true
+                    isTranscribing = true
+                    if loop {
+                        realtimeLoop()
+                    }
                 }
             }
         }
@@ -519,31 +581,51 @@ enum TranscriptionSource {
     func stopRecording(_ loop: Bool) {
         isRecording = false
         bufferSeconds = 0
-        stopRealtimeTranscription()
-        isTranscriptionComplete = false
-            
-        if let audioProcessor = whisperKit?.audioProcessor {
-            audioProcessor.stopRecording()
-        }
 
-        if !loop {
-            self.transcribeTask = Task {
-                isTranscribing = true
-                do {
-                    try await transcribeCurrentBuffer()
-                } catch {
-                    print("Error: \(error.localizedDescription)")
+        if transcriptionEngine == .speechAnalyzer {
+            // Stop SpeechAnalyzer
+            Task {
+                await speechAnalyzer?.stopRecording()
+
+                // Optionally summarize the transcript
+                if let transcript = speechAnalyzer?.getFullTranscript(), !transcript.isEmpty {
+                    await summarizeTranscript(transcript)
                 }
-                finalizeText()
-                isTranscribing = false
-            
+
                 await MainActor.run {
+                    finalizeText()
+                    isTranscribing = false
                     isTranscriptionComplete = true
                 }
             }
         } else {
-            finalizeText()
-            isTranscriptionComplete = true
+            // Stop WhisperKit
+            stopRealtimeTranscription()
+            isTranscriptionComplete = false
+
+            if let audioProcessor = whisperKit?.audioProcessor {
+                audioProcessor.stopRecording()
+            }
+
+            if !loop {
+                self.transcribeTask = Task {
+                    isTranscribing = true
+                    do {
+                        try await transcribeCurrentBuffer()
+                    } catch {
+                        print("Error: \(error.localizedDescription)")
+                    }
+                    finalizeText()
+                    isTranscribing = false
+
+                    await MainActor.run {
+                        isTranscriptionComplete = true
+                    }
+                }
+            } else {
+                finalizeText()
+                isTranscriptionComplete = true
+            }
         }
     }
 
@@ -973,14 +1055,69 @@ enum TranscriptionSource {
     }
     
     
+    // MARK: - SpeechAnalyzer Support Methods
+
+    private func startSpeechAnalyzerMonitoring() {
+        Task {
+            while isRecording && isTranscribing {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+
+                await MainActor.run {
+                    if let analyzer = speechAnalyzer {
+                        // Update UI with current transcription
+                        currentText = analyzer.currentText
+                        confirmedText = analyzer.confirmedText
+                        hypothesisText = analyzer.hypothesisText
+                        bufferEnergy = analyzer.bufferEnergy
+                        bufferSeconds = analyzer.bufferSeconds
+                    }
+                }
+            }
+        }
+    }
+
+    private func summarizeTranscript(_ transcript: String) async {
+        guard let summarizer = summarizationService else { return }
+
+        await MainActor.run {
+            isSummarizing = true
+        }
+
+        do {
+            let summary = try await summarizer.summarize(transcript: transcript)
+
+            await MainActor.run {
+                currentSummary = summary
+                isSummarizing = false
+            }
+        } catch {
+            print("Summarization error: \(error.localizedDescription)")
+            await MainActor.run {
+                isSummarizing = false
+            }
+        }
+    }
+
+    /// Summarize the current or provided transcript
+    public func summarize(transcript: String? = nil) async {
+        let textToSummarize = transcript ?? getFullTranscript()
+        guard !textToSummarize.isEmpty else { return }
+
+        await summarizeTranscript(textToSummarize)
+    }
+
     // Transcription methods
     public func getFullTranscript() -> String {
-        finalizeText()
+        if transcriptionEngine == .speechAnalyzer {
+            return speechAnalyzer?.getFullTranscript() ?? ""
+        } else {
+            finalizeText()
 
-        let segments = confirmedSegments + unconfirmedSegments
-        let transcript = formatSegments(segments, withTimestamps: false)
-        transcriptionSource = .none
-        return transcript.joined(separator: "\n")
+            let segments = confirmedSegments + unconfirmedSegments
+            let transcript = formatSegments(segments, withTimestamps: false)
+            transcriptionSource = .none
+            return transcript.joined(separator: "\n")
+        }
     }
 }
 
