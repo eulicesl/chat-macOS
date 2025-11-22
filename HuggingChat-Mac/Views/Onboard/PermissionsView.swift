@@ -11,7 +11,10 @@ import AVFAudio
 struct PermissionsView: View {
     @State private var microphoneAccessGranted = false
     @State private var accessibilityFeaturesGranted = false
-    
+    @State private var showSuccessView = false
+    @Environment(\.dismissWindow) private var dismissWindow
+    @AppStorage("permissionsGranted") private var permissionsGranted: Bool = false
+
     var body: some View {
         ZStack {
             Color.white
@@ -51,7 +54,8 @@ struct PermissionsView: View {
                 
                 Button(action: {
                     if microphoneAccessGranted && accessibilityFeaturesGranted {
-                        // TODO: Go to success view
+                        permissionsGranted = true
+                        showSuccessView = true
                     }
                 }, label: {
                     Text("All Set!")
@@ -69,6 +73,9 @@ struct PermissionsView: View {
             .padding()
         }
         .ignoresSafeArea(.container, edges: .top)
+        .fullScreenCover(isPresented: $showSuccessView) {
+            SuccessView()
+        }
     }
     
     private func requestMicrophoneAccess() async {
@@ -76,7 +83,10 @@ struct PermissionsView: View {
             DispatchQueue.main.async {
                 self.microphoneAccessGranted = granted
                 if !granted {
-                    // TODO: Go to system settings
+                    // Open System Settings to the Privacy & Security > Microphone section
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+                        NSWorkspace.shared.open(url)
+                    }
                 }
             }
         }

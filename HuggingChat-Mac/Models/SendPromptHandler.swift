@@ -179,7 +179,7 @@ final class SendPromptHandler {
     var update: AnyPublisher<MessageRow, HFError> {
         return privateUpdate
             .map({ [weak self] (messageType: StreamMessageType) -> MessageRow? in
-                guard let self else { fatalError() }
+                guard let self else { return nil }
                 return self.updateMessageRow(with: messageType)
             })
             .compactMap({  $0 })

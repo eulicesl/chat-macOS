@@ -18,14 +18,18 @@ final class UserAgentBuilder {
     static func DarwinVersion() -> String {
         var sysinfo = utsname()
         uname(&sysinfo)
-        let dv = String(bytes: Data(bytes: &sysinfo.release, count: Int(_SYS_NAMELEN)), encoding: .ascii)!.trimmingCharacters(in: .controlCharacters)
-        return "Darwin/\(dv)"
+        guard let dv = String(bytes: Data(bytes: &sysinfo.release, count: Int(_SYS_NAMELEN)), encoding: .ascii) else {
+            return "Darwin/Unknown"
+        }
+        return "Darwin/\(dv.trimmingCharacters(in: .controlCharacters))"
     }
 
     //eg. CFNetwork/808.3
     static func CFNetworkVersion() -> String {
-        let dictionary = Bundle(identifier: "com.apple.CFNetwork")?.infoDictionary!
-        let version = dictionary?["CFBundleShortVersionString"] as! String
+        guard let dictionary = Bundle(identifier: "com.apple.CFNetwork")?.infoDictionary,
+              let version = dictionary["CFBundleShortVersionString"] as? String else {
+            return "CFNetwork/Unknown"
+        }
         return "CFNetwork/\(version)"
     }
 
@@ -42,25 +46,35 @@ final class UserAgentBuilder {
     static func deviceName() -> String {
         var sysinfo = utsname()
         uname(&sysinfo)
-        return String(bytes: Data(bytes: &sysinfo.machine, count: Int(_SYS_NAMELEN)), encoding: .ascii)!.trimmingCharacters(in: .controlCharacters)
+        guard let name = String(bytes: Data(bytes: &sysinfo.machine, count: Int(_SYS_NAMELEN)), encoding: .ascii) else {
+            return "Unknown"
+        }
+        return name.trimmingCharacters(in: .controlCharacters)
     }
     
     static let appVersion: String = {
-        let dictionary = Bundle.main.infoDictionary!
-        let version = dictionary["CFBundleShortVersionString"] as! String
+        guard let dictionary = Bundle.main.infoDictionary,
+              let version = dictionary["CFBundleShortVersionString"] as? String else {
+            return "1.0.0"
+        }
         return "\(version)"
     }()
     
     static let buildNumber: String = {
-        let dictionary = Bundle.main.infoDictionary!
-        let build = dictionary["CFBundleVersion"] as! String
+        guard let dictionary = Bundle.main.infoDictionary,
+              let build = dictionary["CFBundleVersion"] as? String else {
+            return "1"
+        }
         return "\(build)"
     }()
     
     static let device: String = {
         var sysinfo = utsname()
         uname(&sysinfo)
-        return String(bytes: Data(bytes: &sysinfo.machine, count: Int(_SYS_NAMELEN)), encoding: .ascii)!.trimmingCharacters(in: .controlCharacters)
+        guard let name = String(bytes: Data(bytes: &sysinfo.machine, count: Int(_SYS_NAMELEN)), encoding: .ascii) else {
+            return "Unknown"
+        }
+        return name.trimmingCharacters(in: .controlCharacters)
     }()
     
     static let osVersion: String = {
@@ -70,10 +84,12 @@ final class UserAgentBuilder {
 
     //eg. MyApp/1
     static func appNameAndVersion() -> String {
-        let dictionary = Bundle.main.infoDictionary!
-        let version = dictionary["CFBundleShortVersionString"] as! String
-        let build = dictionary["CFBundleVersion"] as! String
-        let name = dictionary["CFBundleName"] as! String
+        guard let dictionary = Bundle.main.infoDictionary,
+              let version = dictionary["CFBundleShortVersionString"] as? String,
+              let build = dictionary["CFBundleVersion"] as? String,
+              let name = dictionary["CFBundleName"] as? String else {
+            return "HuggingChat-Mac/1.0.0-(1)"
+        }
         return "\(name)/\(version)-(\(build))"
     }
 

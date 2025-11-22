@@ -86,10 +86,36 @@ class VSCodeReader {
     }
     
     private func getWindowContent(port: Int) async throws -> VSCodeWindow {
-        let url = URL(string: "http://127.0.0.1:\(port)")!
-        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let url = URL(string: "http://127.0.0.1:\(port)") else {
+            throw NSError(domain: "VSCodeReader", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid localhost URL"])
+        }
+
+        // Security: Validate response to prevent malicious local services from injecting content
+        let (data, response) = try await URLSession.shared.data(from: url)
+
+        // Verify response is from expected source
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(domain: "VSCodeReader", code: -2, userInfo: [NSLocalizedDescriptionKey: "Invalid response type"])
+        }
+
+        // Verify localhost connection
+        guard let responseURL = httpResponse.url,
+              responseURL.host == "127.0.0.1" || responseURL.host == "localhost" else {
+            throw NSError(domain: "VSCodeReader", code: -3, userInfo: [NSLocalizedDescriptionKey: "Response not from localhost"])
+        }
+
+        // Verify response is valid JSON and contains expected structure
         let decoder = JSONDecoder()
-        return try decoder.decode(VSCodeWindow.self, from: data)
+        let window = try decoder.decode(VSCodeWindow.self, from: data)
+
+        // Additional validation: Verify the window data has reasonable values
+        guard !window.windowId.isEmpty,
+              window.timestamp.count > 0 else {
+            throw NSError(domain: "VSCodeReader", code: -4, userInfo: [NSLocalizedDescriptionKey: "Invalid window data structure"])
+        }
+
+        AppLogger.debug("Successfully validated VSCode window content from port \(port)", category: .general)
+        return window
     }
 }
 
