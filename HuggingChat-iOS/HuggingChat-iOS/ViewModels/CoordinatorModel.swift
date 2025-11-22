@@ -13,6 +13,9 @@ class CoordinatorModel: NSObject {
     var isAuthenticating = false
     var errorMessage: String?
 
+    // Store authentication session as property to prevent premature deallocation
+    private var authenticationSession: ASWebAuthenticationSession?
+
     func signIn(presentationContext: ASPresentationAnchor) async throws {
         isAuthenticating = true
         errorMessage = nil
@@ -28,32 +31,42 @@ class CoordinatorModel: NSObject {
             // Start web authentication session
             let callbackURLScheme = "huggingchat"
 
-            let session = ASWebAuthenticationSession(url: loginURL, callbackURLScheme: callbackURLScheme) { [weak self] callbackURL, error in
+            authenticationSession = ASWebAuthenticationSession(url: loginURL, callbackURLScheme: callbackURLScheme) { [weak self] callbackURL, error in
                 guard let self else { return }
 
                 if let error = error {
                     if let authError = error as? ASWebAuthenticationSessionError, authError.code == .canceledLogin {
                         // User cancelled, don't show error
+                        Task { @MainActor in
+                            self.authenticationSession = nil
+                        }
                         return
                     }
                     self.setError("Authentication failed: \(error.localizedDescription)")
+                    Task { @MainActor in
+                        self.authenticationSession = nil
+                    }
                     return
                 }
 
                 guard let callbackURL = callbackURL else {
                     self.setError("No callback URL received")
+                    Task { @MainActor in
+                        self.authenticationSession = nil
+                    }
                     return
                 }
 
                 Task { @MainActor in
                     await self.handleCallback(url: callbackURL)
+                    self.authenticationSession = nil
                 }
             }
 
-            session.presentationContextProvider = self
-            session.prefersEphemeralWebBrowserSession = false
+            authenticationSession?.presentationContextProvider = self
+            authenticationSession?.prefersEphemeralWebBrowserSession = false
 
-            session.start()
+            authenticationSession?.start()
 
         } catch {
             errorMessage = "Failed to start authentication: \(error.localizedDescription)"
