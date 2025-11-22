@@ -10,7 +10,7 @@ import UIKit
 import Observation
 
 @Observable
-class ContextProvider {
+final class ContextProvider: @unchecked Sendable {
     static let shared = ContextProvider()
 
     var currentContext: DeviceContext?

@@ -7,7 +7,7 @@ import Foundation
 import Observation
 
 @Observable
-class HuggingChatSession {
+final class HuggingChatSession: @unchecked Sendable {
     static let shared = HuggingChatSession()
 
     var currentUser: HuggingChatUser?

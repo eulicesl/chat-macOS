@@ -27,6 +27,19 @@ struct Conversation: Codable, Identifiable, Hashable {
         case assistantId
     }
 
+    // Memberwise initializer
+    init(id: String, title: String, modelId: String, messages: [Message], updatedAt: Date, createdAt: Date?, areMessagesLoaded: Bool, preprompt: String?, assistantId: String?) {
+        self.id = id
+        self.title = title
+        self.modelId = modelId
+        self.messages = messages
+        self.updatedAt = updatedAt
+        self.createdAt = createdAt
+        self.areMessagesLoaded = areMessagesLoaded
+        self.preprompt = preprompt
+        self.assistantId = assistantId
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 

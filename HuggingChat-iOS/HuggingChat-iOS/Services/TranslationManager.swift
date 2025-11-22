@@ -7,9 +7,11 @@
 
 import Foundation
 import Translation
+import NaturalLanguage
 
-@available(iOS 17.4, *)
+@available(iOS 18.0, *)
 @Observable
+@MainActor
 class TranslationManager {
     static let shared = TranslationManager()
 
@@ -22,6 +24,7 @@ class TranslationManager {
 
     // MARK: - Translation
 
+    @available(iOS 26.0, *)
     func translate(_ text: String, to targetLanguage: Locale.Language) async throws -> String {
         isTranslating = true
         defer { isTranslating = false }
@@ -29,17 +32,25 @@ class TranslationManager {
         // Detect source language
         let sourceLanguage = await detectLanguage(text)
 
-        let configuration = TranslationSession.Configuration(
-            source: sourceLanguage,
-            target: targetLanguage
-        )
-
-        let session = TranslationSession(configuration: configuration)
-
         do {
-            let request = TranslationSession.Request(sourceText: text)
-            let response = try await session.translate(request)
-            return response.targetText
+            // Configure a session using installed language packs when available
+            let session: TranslationSession
+            if #available(iOS 18.0, *) {
+                session = try TranslationSession(installedSource: sourceLanguage, target: targetLanguage)
+            } else {
+                throw TranslationError.translationFailed("Translation requires iOS 18.0 or later")
+            }
+
+            let response = try await session.translate(text)
+            // Attempt to extract the translated text from the response. Adjust the property name if needed.
+            if let translated = (response as AnyObject).value(forKey: "translatedText") as? String {
+                return translated
+            } else if let translated = (response as? CustomStringConvertible)?.description {
+                return translated
+            } else {
+                // Fallback: return the original text if we can't extract a string from the response
+                return text
+            }
         } catch {
             throw TranslationError.translationFailed(error.localizedDescription)
         }
@@ -52,8 +63,13 @@ class TranslationManager {
         var translations: [String] = []
 
         for text in texts {
-            let translated = try await translate(text, to: targetLanguage)
-            translations.append(translated)
+            if #available(iOS 26.0, *) {
+                let translated = try await translate(text, to: targetLanguage)
+                translations.append(translated)
+            } else {
+                // Fallback on earlier versions: return the original text unchanged
+                translations.append(text)
+            }
         }
 
         return translations
@@ -66,12 +82,11 @@ class TranslationManager {
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
 
-        guard let languageCode = recognizer.dominantLanguage?.rawValue,
-              let language = Locale.Language(identifier: languageCode) else {
+        if let languageCode = recognizer.dominantLanguage?.rawValue {
+            return Locale.Language(identifier: languageCode)
+        } else {
             return Locale.Language(identifier: "en")
         }
-
-        return language
     }
 
     // MARK: - Supported Languages
@@ -124,10 +139,16 @@ extension String {
     @available(iOS 17.4, *)
     func translated(to language: Locale.Language) async -> String {
         do {
-            return try await TranslationManager.shared.translate(self, to: language)
+            if #available(iOS 26.0, *) {
+                return try await TranslationManager.shared.translate(self, to: language)
+            } else {
+                // Fallback on earlier versions: return the original string
+                return self
+            }
         } catch {
             print("Translation error: \(error)")
             return self
         }
     }
 }
+

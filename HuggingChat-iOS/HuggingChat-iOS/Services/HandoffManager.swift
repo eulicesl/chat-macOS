@@ -8,7 +8,7 @@
 import Foundation
 
 @Observable
-class HandoffManager {
+final class HandoffManager: @unchecked Sendable {
     static let shared = HandoffManager()
 
     private var currentActivity: NSUserActivity?

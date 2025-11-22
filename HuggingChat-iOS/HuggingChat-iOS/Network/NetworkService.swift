@@ -6,7 +6,7 @@
 import Foundation
 import Combine
 
-class NetworkService {
+final class NetworkService: @unchecked Sendable {
     static let shared = NetworkService()
 
     private let baseURL: String

@@ -8,6 +8,7 @@ import Observation
 import Combine
 
 @Observable
+@MainActor
 class ConversationViewModel {
     var messages: [MessageRow] = []
     var conversation: Conversation?

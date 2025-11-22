@@ -15,29 +15,7 @@ struct MarkdownMessageView: View {
     var body: some View {
         Markdown(content)
             .markdownTheme(.gitHub)
-            .markdownCodeSyntaxHighlighter(.splash(theme: splashTheme))
             .textSelection(.enabled)
-    }
-
-    private var splashTheme: Splash.Theme {
-        themingEngine.currentTheme.colorScheme == .dark ? .sunset(withFont: .init(size: 14)) : .presentation(withFont: .init(size: 14))
-    }
-}
-
-// Code block theme configuration
-extension Theme {
-    struct CodeSyntaxHighlighter {
-        @FrozencodeSyntaxHighlighter {
-            CodeSyntaxHighlighter { configuration in
-                configuration.label
-                    .relativeLineSpacing(.em(0.25))
-                    .markdownTextStyle {
-                        FontFamilyVariant(.monospaced)
-                        FontSize(.em(0.85))
-                    }
-                    .padding(16)
-            }
-        }
     }
 }
 

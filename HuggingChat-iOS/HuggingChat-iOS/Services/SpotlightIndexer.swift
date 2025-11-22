@@ -5,12 +5,13 @@
 //  Spotlight search integration for conversations
 //
 
+import UIKit
 import CoreSpotlight
 import MobileCoreServices
 import UniformTypeIdentifiers
 
 @Observable
-class SpotlightIndexer {
+final class SpotlightIndexer: @unchecked Sendable {
     static let shared = SpotlightIndexer()
 
     private init() {}

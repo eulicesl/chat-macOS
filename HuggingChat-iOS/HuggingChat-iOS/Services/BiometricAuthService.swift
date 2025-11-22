@@ -12,7 +12,7 @@ import Observation
 
 /// Service for biometric authentication (Face ID, Touch ID, Passcode)
 @Observable
-class BiometricAuthService {
+final class BiometricAuthService: @unchecked Sendable {
     static let shared = BiometricAuthService()
 
     // Auth state

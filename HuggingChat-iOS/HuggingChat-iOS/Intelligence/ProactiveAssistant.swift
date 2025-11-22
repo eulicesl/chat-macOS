@@ -10,7 +10,7 @@ import Observation
 
 @Observable
 class ProactiveAssistant {
-    static let shared = ProactiveAssistant()
+    @MainActor static let shared = ProactiveAssistant()
 
     var currentSuggestions: [ProactiveSuggestion] = []
     var isEnabled = true
@@ -315,7 +315,7 @@ class ProactiveAssistant {
 
     private func loadSettings() {
         isEnabled = UserDefaults.standard.bool(forKey: "proactiveAssistantEnabled")
-        if !UserDefaults.standard.object(forKey: "proactiveAssistantEnabled") {
+        if (UserDefaults.standard.object(forKey: "proactiveAssistantEnabled") == nil) {
             isEnabled = true // Default to enabled
         }
     }

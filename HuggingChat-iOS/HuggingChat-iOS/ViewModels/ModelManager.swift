@@ -10,6 +10,7 @@ import MLXNN
 import MLXRandom
 
 @Observable
+@MainActor
 class ModelManager {
     var availableModels: [LocalModel] = LocalModel.availableModels
     var selectedModel: LocalModel?
@@ -29,10 +30,8 @@ class ModelManager {
         errorMessage = nil
 
         // Update model state
-        await MainActor.run {
-            if let index = availableModels.firstIndex(where: { $0.id == model.id }) {
-                availableModels[index].downloadState = .downloading(progress: 0)
-            }
+        if let index = availableModels.firstIndex(where: { $0.id == model.id }) {
+            availableModels[index].downloadState = .downloading(progress: 0)
         }
 
         do {
@@ -45,33 +44,27 @@ class ModelManager {
 
             // Simulate download progress (actual implementation would download from HF)
             for progress in stride(from: 0.0, through: 1.0, by: 0.1) {
-                await MainActor.run {
-                    self.loadProgress = progress
-                    if let index = availableModels.firstIndex(where: { $0.id == model.id }) {
-                        availableModels[index].downloadState = .downloading(progress: progress)
-                    }
+                self.loadProgress = progress
+                if let index = availableModels.firstIndex(where: { $0.id == model.id }) {
+                    availableModels[index].downloadState = .downloading(progress: progress)
                 }
                 try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
             }
 
             // Mark as downloaded
-            await MainActor.run {
-                if let index = availableModels.firstIndex(where: { $0.id == model.id }) {
-                    availableModels[index].downloadState = .downloaded
-                    availableModels[index].localURL = modelPath
-                }
+            if let index = availableModels.firstIndex(where: { $0.id == model.id }) {
+                availableModels[index].downloadState = .downloaded
+                availableModels[index].localURL = modelPath
                 self.selectedModel = availableModels[index]
-                self.isLoading = false
             }
+            self.isLoading = false
 
         } catch {
-            await MainActor.run {
-                self.errorMessage = "Failed to load model: \(error.localizedDescription)"
-                if let index = availableModels.firstIndex(where: { $0.id == model.id }) {
-                    availableModels[index].downloadState = .failed(error: error.localizedDescription)
-                }
-                self.isLoading = false
+            self.errorMessage = "Failed to load model: \(error.localizedDescription)"
+            if let index = availableModels.firstIndex(where: { $0.id == model.id }) {
+                availableModels[index].downloadState = .failed(error: error.localizedDescription)
             }
+            self.isLoading = false
         }
     }
 

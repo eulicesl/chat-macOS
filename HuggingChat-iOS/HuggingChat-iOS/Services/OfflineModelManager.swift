@@ -10,7 +10,7 @@ import Observation
 
 /// Manages downloading, storage, and lifecycle of offline AI models
 @Observable
-class OfflineModelManager {
+final class OfflineModelManager: @unchecked Sendable {
     static let shared = OfflineModelManager()
 
     // Model storage

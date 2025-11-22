@@ -183,7 +183,7 @@ struct SiriShortcutsTip: Tip {
 // MARK: - Tips Configuration
 
 @Observable
-class TipsManager {
+final class TipsManager: @unchecked Sendable {
     static let shared = TipsManager()
 
     private init() {}

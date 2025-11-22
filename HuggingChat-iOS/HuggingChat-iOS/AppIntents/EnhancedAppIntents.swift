@@ -13,10 +13,10 @@ import Foundation
 
 @available(iOS 17.0, *)
 struct EnableKeyboardIntent: AppIntent {
-    static var title: LocalizedStringResource = "Enable AI Keyboard"
-    static var description = IntentDescription("Enable the HuggingChat AI Keyboard")
+    static let title: LocalizedStringResource = "Enable AI Keyboard"
+    static let description = IntentDescription("Enable the HuggingChat AI Keyboard")
 
-    static var openAppWhenRun: Bool = true
+    static let openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -31,8 +31,8 @@ struct EnableKeyboardIntent: AppIntent {
 
 @available(iOS 17.0, *)
 struct DisableKeyboardIntent: AppIntent {
-    static var title: LocalizedStringResource = "Disable AI Keyboard"
-    static var description = IntentDescription("Disable the HuggingChat AI Keyboard")
+    static let title: LocalizedStringResource = "Disable AI Keyboard"
+    static let description = IntentDescription("Disable the HuggingChat AI Keyboard")
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -48,8 +48,8 @@ struct DisableKeyboardIntent: AppIntent {
 
 @available(iOS 17.0, *)
 struct TranslateTextIntent: AppIntent {
-    static var title: LocalizedStringResource = "Translate with AI"
-    static var description = IntentDescription("Translate text using HuggingChat AI")
+    static let title: LocalizedStringResource = "Translate with AI"
+    static let description = IntentDescription("Translate text using HuggingChat AI")
 
     @Parameter(title: "Text to Translate")
     var text: String
@@ -72,8 +72,8 @@ struct TranslateTextIntent: AppIntent {
 
 @available(iOS 17.0, *)
 struct ImproveWritingIntent: AppIntent {
-    static var title: LocalizedStringResource = "Improve Writing with AI"
-    static var description = IntentDescription("Improve text using HuggingChat AI")
+    static let title: LocalizedStringResource = "Improve Writing with AI"
+    static let description = IntentDescription("Improve text using HuggingChat AI")
 
     @Parameter(title: "Text to Improve")
     var text: String
@@ -93,8 +93,8 @@ struct ImproveWritingIntent: AppIntent {
 
 @available(iOS 17.0, *)
 struct SummarizeTextIntent: AppIntent {
-    static var title: LocalizedStringResource = "Summarize with AI"
-    static var description = IntentDescription("Summarize text using HuggingChat AI")
+    static let title: LocalizedStringResource = "Summarize with AI"
+    static let description = IntentDescription("Summarize text using HuggingChat AI")
 
     @Parameter(title: "Text to Summarize")
     var text: String
@@ -116,13 +116,13 @@ struct SummarizeTextIntent: AppIntent {
 
 @available(iOS 17.0, *)
 struct DownloadModelIntent: AppIntent {
-    static var title: LocalizedStringResource = "Download Offline Model"
-    static var description = IntentDescription("Download an AI model for offline use")
+    static let title: LocalizedStringResource = "Download Offline Model"
+    static let description = IntentDescription("Download an AI model for offline use")
 
     @Parameter(title: "Model ID")
     var modelId: String
 
-    static var openAppWhenRun: Bool = true
+    static let openAppWhenRun: Bool = true
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -139,8 +139,8 @@ struct DownloadModelIntent: AppIntent {
 
 @available(iOS 17.0, *)
 struct ListInstalledModelsIntent: AppIntent {
-    static var title: LocalizedStringResource = "List Installed Models"
-    static var description = IntentDescription("Show all installed AI models")
+    static let title: LocalizedStringResource = "List Installed Models"
+    static let description = IntentDescription("Show all installed AI models")
 
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<[String]> & ProvidesDialog {
@@ -158,8 +158,8 @@ struct ListInstalledModelsIntent: AppIntent {
 
 @available(iOS 17.0, *)
 struct GetMemoryStatsIntent: AppIntent {
-    static var title: LocalizedStringResource = "Get Memory Statistics"
-    static var description = IntentDescription("View memory system statistics")
+    static let title: LocalizedStringResource = "Get Memory Statistics"
+    static let description = IntentDescription("View memory system statistics")
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -173,14 +173,14 @@ struct GetMemoryStatsIntent: AppIntent {
         Writing Style: \(stats.writingStyle.rawValue)
         """
 
-        return .result(dialog: message)
+        return .result(dialog: IntentDialog(stringLiteral: message))
     }
 }
 
 @available(iOS 17.0, *)
 struct ClearMemoryIntent: AppIntent {
-    static var title: LocalizedStringResource = "Clear Keyboard Memory"
-    static var description = IntentDescription("Clear all learned keyboard data")
+    static let title: LocalizedStringResource = "Clear Keyboard Memory"
+    static let description = IntentDescription("Clear all learned keyboard data")
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -195,8 +195,8 @@ struct ClearMemoryIntent: AppIntent {
 
 @available(iOS 17.0, *)
 struct TranscribeAudioIntent: AppIntent {
-    static var title: LocalizedStringResource = "Transcribe Audio"
-    static var description = IntentDescription("Transcribe audio using WhisperKit")
+    static let title: LocalizedStringResource = "Transcribe Audio"
+    static let description = IntentDescription("Transcribe audio using WhisperKit")
 
     @Parameter(title: "Audio File")
     var audioFile: IntentFile
@@ -225,7 +225,10 @@ struct TranscribeAudioIntent: AppIntent {
 }
 
 // MARK: - Enhanced App Shortcuts Provider
+// NOTE: Commented out to avoid conflict with AppIntents.swift HuggingChatShortcuts provider
+// Only one AppShortcutsProvider is allowed per app
 
+/*
 @available(iOS 17.0, *)
 struct EnhancedAppShortcutsProvider: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
@@ -290,6 +293,7 @@ struct EnhancedAppShortcutsProvider: AppShortcutsProvider {
         )
     }
 }
+*/
 
 // MARK: - Intent Error
 

@@ -9,7 +9,7 @@ import Foundation
 import Observation
 
 @Observable
-class UserBehaviorAnalyzer {
+final class UserBehaviorAnalyzer: @unchecked Sendable {
     static let shared = UserBehaviorAnalyzer()
 
     var identifiedPatterns: [BehaviorPattern] = []

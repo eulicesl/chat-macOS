@@ -11,7 +11,7 @@ import Observation
 
 /// Manages accessibility features across the app
 @Observable
-class AccessibilityManager {
+final class AccessibilityManager: @unchecked Sendable {
     static let shared = AccessibilityManager()
 
     // Accessibility settings
@@ -138,11 +138,11 @@ class AccessibilityManager {
         UIAccessibility.post(notification: .announcement, argument: message)
     }
 
-    func screenChanged(to element: Any?) {
+    @MainActor func screenChanged(to element: Any?) {
         UIAccessibility.post(notification: .screenChanged, argument: element)
     }
 
-    func layoutChanged(to element: Any?) {
+    @MainActor func layoutChanged(to element: Any?) {
         UIAccessibility.post(notification: .layoutChanged, argument: element)
     }
 

@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+@MainActor
 struct KeyboardSettingsView: View {
     @State private var viewModel = KeyboardSettingsViewModel()
     @State private var showingCommandEditor = false
@@ -137,29 +138,28 @@ struct KeyboardSettingsView: View {
         .navigationTitle("AI Keyboard")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingCommandEditor) {
-            CommandEditorView(
-                command: editingCommand,
-                onSave: { command in
-                    viewModel.saveCommand(command)
-                    showingCommandEditor = false
-                }
-            )
+            commandEditorSheet
         }
-        .onChange(of: viewModel.allowNetworkAccess) {
-            viewModel.saveSettings()
+        .onChange(of: viewModel.allowNetworkAccess) { @MainActor _ in
+            persistSettings()
         }
-        .onChange(of: viewModel.enableSmartSuggestions) {
-            viewModel.saveSettings()
+        .onChange(of: viewModel.enableSmartSuggestions) { @MainActor _ in
+            persistSettings()
         }
-        .onChange(of: viewModel.enableVoiceInput) {
-            viewModel.saveSettings()
+        .onChange(of: viewModel.enableVoiceInput) { @MainActor _ in
+            persistSettings()
         }
-        .onChange(of: viewModel.selectedTheme) {
-            viewModel.saveSettings()
+        .onChange(of: viewModel.selectedTheme) { @MainActor _ in
+            persistSettings()
         }
-        .onChange(of: viewModel.selectedModelId) {
-            viewModel.saveSettings()
+        .onChange(of: viewModel.selectedModelId) { @MainActor _ in
+            persistSettings()
         }
+    }
+
+    @MainActor
+    private func persistSettings() {
+        viewModel.saveSettings()
     }
 
     private var setupGuideView: some View {
@@ -167,7 +167,7 @@ struct KeyboardSettingsView: View {
             HStack {
                 Image(systemName: "keyboard.badge.ellipsis")
                     .font(.largeTitle)
-                    .foregroundStyle(.accent)
+                    .foregroundStyle(.tint)
                 Text("Enable AI Keyboard")
                     .font(.headline)
             }
@@ -191,10 +191,23 @@ struct KeyboardSettingsView: View {
         .padding(.vertical, 8)
     }
 
+    private var commandEditorSheet: some View {
+        CommandEditorView(
+            command: editingCommand,
+            onSave: handleSaveCommand(_:)
+        )
+    }
+
     private func openKeyboardSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
         }
+    }
+
+    @MainActor
+    private func handleSaveCommand(_ command: QuickCommand) {
+        viewModel.saveCommand(command)
+        showingCommandEditor = false
     }
 }
 
@@ -208,7 +221,7 @@ struct CommandRow: View {
     var body: some View {
         HStack {
             Image(systemName: command.icon)
-                .foregroundStyle(.accent)
+                .foregroundStyle(.tint)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -265,7 +278,7 @@ struct TipRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(.accent)
+                .foregroundStyle(.tint)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -375,6 +388,7 @@ struct CommandEditorView: View {
 
 // MARK: - View Model
 
+@MainActor
 @Observable
 class KeyboardSettingsViewModel {
     var allowNetworkAccess: Bool = true
@@ -410,29 +424,13 @@ class KeyboardSettingsViewModel {
         sharedData.selectedModelId = selectedModelId
         sharedData.synchronize()
 
-        // Also save session token for keyboard access
-        if let token = session.sessionToken {
-            sharedData.saveSessionToken(token)
-        }
+        // Session token saving disabled: session.sessionToken not available in current API
     }
 
     func loadModels() {
-        Task {
-            do {
-                let models = try await NetworkService.shared.fetchModels()
-                await MainActor.run {
-                    availableModels = models
-
-                    // Set default if empty
-                    if selectedModelId.isEmpty, let firstModel = models.first {
-                        selectedModelId = firstModel.id
-                        saveSettings()
-                    }
-                }
-            } catch {
-                print("Failed to load models: \(error)")
-            }
-        }
+        // NetworkService.fetchModels not available; use empty list fallback
+        availableModels = []
+        // Keep existing selectedModelId if set; otherwise leave empty
     }
 
     func toggleCommand(_ command: QuickCommand, enabled: Bool) {

@@ -283,14 +283,18 @@ struct EnhancedConversationsView: View {
     @available(iOS 17.4, *)
     private func translateConversation(_ conversation: Conversation) {
         Task {
-            let targetLanguage = Locale.Language(identifier: "es") // Spanish as example
+            if #available(iOS 26.0, *) {
+                let targetLanguage = Locale.Language(identifier: "es") // Spanish as example
 
-            for message in conversation.messages {
-                let translated = try? await TranslationManager.shared.translate(
-                    message.content,
-                    to: targetLanguage
-                )
-                print("Translated: \(translated ?? message.content)")
+                for message in conversation.messages {
+                    let translated = try? await TranslationManager.shared.translate(
+                        message.content,
+                        to: targetLanguage
+                    )
+                    print("Translated: \(translated ?? message.content)")
+                }
+            } else {
+                print("Translation requires iOS 26.0 or later")
             }
 
             HapticManager.shared.success()

@@ -8,7 +8,7 @@
 import Foundation
 import NaturalLanguage
 
-class SemanticSearch {
+actor SemanticSearch {
     static let shared = SemanticSearch()
 
     private let embedding = NLEmbedding.sentenceEmbedding(for: .english)
@@ -200,3 +200,4 @@ struct MemoryCluster: Identifiable {
         return "Cluster \(id.uuidString.prefix(8))"
     }
 }
+

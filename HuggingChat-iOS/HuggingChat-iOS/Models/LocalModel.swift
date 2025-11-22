@@ -8,13 +8,13 @@ import Foundation
 struct LocalModel: Identifiable, Hashable {
     let displayName: String
     let hfURL: String
-    let localURL: URL?
+    var localURL: URL?
     var downloadState: DownloadState
     let modelType: ModelType
 
     var id: String { hfURL }
 
-    enum DownloadState {
+    enum DownloadState: Equatable {
         case notDownloaded
         case downloading(progress: Double)
         case downloaded

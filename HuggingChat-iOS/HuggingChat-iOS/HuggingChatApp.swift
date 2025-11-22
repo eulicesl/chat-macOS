@@ -13,16 +13,16 @@ import ActivityKit
 @main
 struct HuggingChatApp: App {
     // Core View Models
-    @StateObject private var session = HuggingChatSession.shared
-    @StateObject private var conversationViewModel = ConversationViewModel()
-    @StateObject private var menuViewModel = MenuViewModel()
-    @StateObject private var modelManager = ModelManager()
-    @StateObject private var audioModelManager = AudioModelManager()
-    @StateObject private var themingEngine = ThemingEngine()
-    @StateObject private var coordinatorModel = CoordinatorModel()
+    @State private var session = HuggingChatSession.shared
+    @State private var conversationViewModel = ConversationViewModel()
+    @State private var menuViewModel = MenuViewModel()
+    @State private var modelManager = ModelManager()
+    @State private var audioModelManager = AudioModelManager()
+    @State private var themingEngine = ThemingEngine()
+    @State private var coordinatorModel = CoordinatorModel()
 
     // Enhanced Managers
-    @StateObject private var liveActivityManager = LiveActivityManager()
+    @State private var liveActivityManager = LiveActivityManager()
 
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @Environment(\.scenePhase) private var scenePhase
@@ -30,9 +30,6 @@ struct HuggingChatApp: App {
     init() {
         // Configure TipKit on app launch
         TipsManager.shared.configureTips()
-
-        // Configure App Shortcuts
-        AppShortcutsProvider.updateAppShortcutParameters()
     }
 
     var body: some Scene {

@@ -12,7 +12,11 @@ import AppIntents
 
 @available(iOS 16.0, *)
 struct ConversationFocusFilter: SetFocusFilterIntent {
-    static var title: LocalizedStringResource = "Filter Conversations"
+    static let title: LocalizedStringResource = "Filter Conversations"
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "Filter Conversations")
+    }
 
     @Parameter(title: "Show Priority Conversations")
     var showPriorityOnly: Bool
@@ -34,7 +38,7 @@ struct ConversationFocusFilter: SetFocusFilterIntent {
 // MARK: - Focus Filter Manager
 
 @Observable
-class FocusFilterManager {
+final class FocusFilterManager: @unchecked Sendable {
     static let shared = FocusFilterManager()
 
     var isFilterActive = false

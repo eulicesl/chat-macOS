@@ -24,6 +24,7 @@ struct ChatActivityAttributes: ActivityAttributes {
 
 // MARK: - Live Activity Manager
 
+@MainActor
 @Observable
 class LiveActivityManager {
     private var currentActivity: Activity<ChatActivityAttributes>?
@@ -53,6 +54,12 @@ class LiveActivityManager {
     }
 
     func updateActivity(message: String, tokens: Int, progress: Double) {
+        Task { @MainActor in
+            await updateActivityAsync(message: message, tokens: tokens, progress: progress)
+        }
+    }
+
+    private func updateActivityAsync(message: String, tokens: Int, progress: Double) async {
         guard let activity = currentActivity else { return }
 
         let contentState = ChatActivityAttributes.ContentState(
@@ -62,17 +69,21 @@ class LiveActivityManager {
             progress: progress
         )
 
-        Task {
-            await activity.update(
-                ActivityContent(
-                    state: contentState,
-                    staleDate: Date().addingTimeInterval(300)
-                )
+        await activity.update(
+            ActivityContent(
+                state: contentState,
+                staleDate: Date().addingTimeInterval(300)
             )
-        }
+        )
     }
 
     func endActivity(finalMessage: String, totalTokens: Int) {
+        Task { @MainActor in
+            await endActivityAsync(finalMessage: finalMessage, totalTokens: totalTokens)
+        }
+    }
+
+    private func endActivityAsync(finalMessage: String, totalTokens: Int) async {
         guard let activity = currentActivity else { return }
 
         let finalState = ChatActivityAttributes.ContentState(
@@ -82,22 +93,23 @@ class LiveActivityManager {
             progress: 1.0
         )
 
-        Task {
-            await activity.end(
-                ActivityContent(state: finalState, staleDate: nil),
-                dismissalPolicy: .after(.now + 5)
-            )
-            currentActivity = nil
-        }
+        await activity.end(
+            ActivityContent(state: finalState, staleDate: nil),
+            dismissalPolicy: .after(.now + 5)
+        )
+        currentActivity = nil
     }
 
     func cancelActivity() {
-        guard let activity = currentActivity else { return }
-
-        Task {
-            await activity.end(nil, dismissalPolicy: .immediate)
-            currentActivity = nil
+        Task { @MainActor in
+            await cancelActivityAsync()
         }
+    }
+
+    private func cancelActivityAsync() async {
+        guard let activity = currentActivity else { return }
+        await activity.end(nil, dismissalPolicy: .immediate)
+        currentActivity = nil
     }
 }
 
@@ -216,3 +228,4 @@ struct LiveActivityView: View {
         .padding()
     }
 }
+

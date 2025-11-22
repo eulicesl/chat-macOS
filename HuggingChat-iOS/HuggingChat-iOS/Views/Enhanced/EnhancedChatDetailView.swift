@@ -325,15 +325,19 @@ struct EnhancedChatDetailView: View {
     @available(iOS 17.4, *)
     private func translateMessage(_ message: MessageRow) {
         Task {
-            let targetLanguage = Locale.Language(identifier: "es")
-            let translated = try? await TranslationManager.shared.translate(
-                message.content,
-                to: targetLanguage
-            )
+            if #available(iOS 26.0, *) {
+                let targetLanguage = Locale.Language(identifier: "es")
+                let translated = try? await TranslationManager.shared.translate(
+                    message.content,
+                    to: targetLanguage
+                )
 
-            if let translated = translated {
-                print("Translated: \(translated)")
-                HapticManager.shared.success()
+                if let translated = translated {
+                    print("Translated: \(translated)")
+                    HapticManager.shared.success()
+                }
+            } else {
+                print("Translation requires iOS 26.0 or later")
             }
         }
     }
@@ -454,11 +458,15 @@ struct TranslationSheet: View {
 
     private func translateAll() {
         Task {
-            for message in messages {
-                _ = try? await TranslationManager.shared.translate(
-                    message.content,
-                    to: selectedLanguage
-                )
+            if #available(iOS 26.0, *) {
+                for message in messages {
+                    _ = try? await TranslationManager.shared.translate(
+                        message.content,
+                        to: selectedLanguage
+                    )
+                }
+            } else {
+                print("Translation requires iOS 26.0 or later")
             }
 
             dismiss()

@@ -10,6 +10,18 @@ let package = Package(
         .library(
             name: "HuggingChat-iOS",
             targets: ["HuggingChat-iOS"]
+        ),
+        .library(
+            name: "HuggingChatKeyboard",
+            targets: ["HuggingChatKeyboard"]
+        ),
+        .library(
+            name: "HuggingChatWidget",
+            targets: ["HuggingChatWidget"]
+        ),
+        .library(
+            name: "ShareExtension",
+            targets: ["ShareExtension"]
         )
     ],
     dependencies: [
@@ -37,7 +49,29 @@ let package = Package(
                 .product(name: "Path", package: "Path.swift"),
                 .product(name: "Transformers", package: "swift-transformers"),
                 .product(name: "Pow", package: "Pow")
-            ]
+            ],
+            path: "HuggingChat-iOS"
+        ),
+        .target(
+            name: "HuggingChatKeyboard",
+            dependencies: [
+                "HuggingChat-iOS"
+            ],
+            path: "HuggingChatKeyboard"
+        ),
+        .target(
+            name: "HuggingChatWidget",
+            dependencies: [
+                "HuggingChat-iOS"
+            ],
+            path: "HuggingChatWidget"
+        ),
+        .target(
+            name: "ShareExtension",
+            dependencies: [
+                "HuggingChat-iOS"
+            ],
+            path: "ShareExtension"
         )
     ]
 )

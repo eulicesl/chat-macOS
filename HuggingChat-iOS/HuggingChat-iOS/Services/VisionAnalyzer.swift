@@ -10,7 +10,7 @@ import UIKit
 import CoreImage
 
 @Observable
-class VisionAnalyzer {
+final class VisionAnalyzer: @unchecked Sendable {
     static let shared = VisionAnalyzer()
 
     var isAnalyzing = false

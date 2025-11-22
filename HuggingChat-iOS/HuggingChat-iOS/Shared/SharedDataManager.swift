@@ -11,7 +11,7 @@ import Observation
 /// Shared data manager for communication between main app and keyboard extension
 /// Uses App Groups (group.com.huggingface.huggingchat) for data sharing
 @Observable
-class SharedDataManager {
+final class SharedDataManager: @unchecked Sendable {
     static let shared = SharedDataManager()
 
     // App Group identifier - must match in both app and extension entitlements

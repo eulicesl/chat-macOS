@@ -12,7 +12,7 @@ import Observation
 // MARK: - Memory Manager
 
 @Observable
-class MemoryManager {
+final class MemoryManager: @unchecked Sendable {
     static let shared = MemoryManager()
 
     private let container: NSPersistentContainer

@@ -9,6 +9,7 @@ import Speech
 import Observation
 import WhisperKit
 
+@MainActor
 @Observable
 class AudioModelManager: NSObject {
     var isRecording = false
@@ -21,7 +22,7 @@ class AudioModelManager: NSObject {
     private var audioRecorder: AVAudioRecorder?
     private var recordedFileURL: URL?
 
-    enum ModelState {
+    enum ModelState: Equatable {
         case unloaded
         case loading
         case loaded
@@ -39,14 +40,10 @@ class AudioModelManager: NSObject {
             // Load WhisperKit model
             whisperKit = try await WhisperKit()
 
-            await MainActor.run {
-                self.modelState = .loaded
-            }
+            self.modelState = .loaded
         } catch {
-            await MainActor.run {
-                self.modelState = .error(error.localizedDescription)
-                self.errorMessage = "Failed to load Whisper model: \(error.localizedDescription)"
-            }
+            self.modelState = .error(error.localizedDescription)
+            self.errorMessage = "Failed to load Whisper model: \(error.localizedDescription)"
         }
     }
 
@@ -71,18 +68,14 @@ class AudioModelManager: NSObject {
             audioRecorder = try AVAudioRecorder(url: url, settings: settings)
             audioRecorder?.record()
 
-            await MainActor.run {
-                self.isRecording = true
-            }
+            self.isRecording = true
         }
     }
 
     func stopRecording() async {
         audioRecorder?.stop()
 
-        await MainActor.run {
-            self.isRecording = false
-        }
+        self.isRecording = false
 
         // Start transcription
         if let url = recordedFileURL {
@@ -92,30 +85,22 @@ class AudioModelManager: NSObject {
 
     private func transcribe(audioURL: URL) async {
         guard let whisperKit = whisperKit else {
-            await MainActor.run {
-                self.errorMessage = "Whisper model not loaded"
-            }
+            self.errorMessage = "Whisper model not loaded"
             return
         }
 
-        await MainActor.run {
-            self.isTranscribing = true
-            self.currentText = ""
-        }
+        self.isTranscribing = true
+        self.currentText = ""
 
         do {
             // Transcribe using WhisperKit
             let result = try await whisperKit.transcribe(audioPath: audioURL.path)
 
-            await MainActor.run {
-                self.currentText = result?.text ?? ""
-                self.isTranscribing = false
-            }
+            self.currentText = result.first?.text ?? ""
+            self.isTranscribing = false
         } catch {
-            await MainActor.run {
-                self.errorMessage = "Transcription failed: \(error.localizedDescription)"
-                self.isTranscribing = false
-            }
+            self.errorMessage = "Transcription failed: \(error.localizedDescription)"
+            self.isTranscribing = false
         }
     }
 

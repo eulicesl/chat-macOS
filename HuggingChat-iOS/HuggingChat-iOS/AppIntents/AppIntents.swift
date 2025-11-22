@@ -26,9 +26,9 @@ struct HuggingChatShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: AskQuestionIntent(),
             phrases: [
-                "Ask \(.applicationName) \(\.$question)",
-                "Send \(\.$question) to \(.applicationName)",
-                "Chat about \(\.$question) in \(.applicationName)"
+                "Ask \(.applicationName) a question",
+                "Send a question to \(.applicationName)",
+                "Chat with \(.applicationName)"
             ],
             shortTitle: "Ask Question",
             systemImageName: "bubble.left.and.bubble.right"
@@ -49,8 +49,8 @@ struct HuggingChatShortcuts: AppShortcutsProvider {
 // MARK: - Start New Chat Intent
 
 struct StartNewChatIntent: AppIntent {
-    static var title: LocalizedStringResource = "Start New Chat"
-    static var description = IntentDescription("Start a new conversation in HuggingChat")
+    static let title: LocalizedStringResource = "Start New Chat"
+    static let description = IntentDescription("Start a new conversation in HuggingChat")
 
     @Parameter(title: "Model")
     var model: String?
@@ -60,20 +60,22 @@ struct StartNewChatIntent: AppIntent {
         // Create new conversation
         let session = HuggingChatSession.shared
         guard let firstModel = session.availableLLM.first else {
-            throw IntentError.message("No models available")
+            throw HCIntentError.message("No models available")
         }
 
-        let modelId = model ?? firstModel.id
+        let selectedModelId = model ?? firstModel.id
+        var openIntent = OpenConversationIntent()
+        openIntent.modelId = selectedModelId
 
-        return .result(opensIntent: OpenConversationIntent(modelId: modelId))
+        return .result(opensIntent: openIntent)
     }
 }
 
 // MARK: - Ask Question Intent
 
 struct AskQuestionIntent: AppIntent {
-    static var title: LocalizedStringResource = "Ask Question"
-    static var description = IntentDescription("Ask a question to HuggingChat")
+    static let title: LocalizedStringResource = "Ask Question"
+    static let description = IntentDescription("Ask a question to HuggingChat")
 
     @Parameter(title: "Question", requestValueDialog: "What would you like to ask?")
     var question: String
@@ -86,7 +88,7 @@ struct AskQuestionIntent: AppIntent {
         let session = HuggingChatSession.shared
 
         guard session.token != nil else {
-            throw IntentError.message("Please sign in to HuggingChat first")
+            throw HCIntentError.message("Please sign in to HuggingChat first")
         }
 
         // Get or create conversation
@@ -97,7 +99,7 @@ struct AskQuestionIntent: AppIntent {
         } else {
             // Create new conversation
             guard let firstModel = session.availableLLM.first else {
-                throw IntentError.message("No models available")
+                throw HCIntentError.message("No models available")
             }
             await viewModel.createNewConversation(modelId: firstModel.id)
         }
@@ -122,15 +124,15 @@ struct AskQuestionIntent: AppIntent {
 // MARK: - Get Recent Conversations Intent
 
 struct GetRecentConversationsIntent: AppIntent {
-    static var title: LocalizedStringResource = "Get Recent Conversations"
-    static var description = IntentDescription("Get your recent conversations from HuggingChat")
+    static let title: LocalizedStringResource = "Get Recent Conversations"
+    static let description = IntentDescription("Get your recent conversations from HuggingChat")
 
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<[ConversationEntity]> {
         let session = HuggingChatSession.shared
 
         guard session.token != nil else {
-            throw IntentError.message("Please sign in to HuggingChat first")
+            throw HCIntentError.message("Please sign in to HuggingChat first")
         }
 
         let menuViewModel = MenuViewModel()
@@ -151,8 +153,8 @@ struct GetRecentConversationsIntent: AppIntent {
 // MARK: - Open Conversation Intent
 
 struct OpenConversationIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open Conversation"
-    static var openAppWhenRun: Bool = true
+    static let title: LocalizedStringResource = "Open Conversation"
+    static let openAppWhenRun: Bool = true
 
     @Parameter(title: "Model ID")
     var modelId: String
@@ -171,8 +173,8 @@ struct ConversationEntity: AppEntity {
     let title: String
     let updatedAt: Date
 
-    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Conversation"
-    static var defaultQuery = ConversationEntityQuery()
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Conversation"
+    static let defaultQuery = ConversationEntityQuery()
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
@@ -212,7 +214,7 @@ struct ConversationEntityQuery: EntityQuery {
 
 // MARK: - Intent Error
 
-enum IntentError: Error, CustomLocalizedStringResourceConvertible {
+enum HCIntentError: Error, CustomLocalizedStringResourceConvertible {
     case message(String)
 
     var localizedStringResource: LocalizedStringResource {

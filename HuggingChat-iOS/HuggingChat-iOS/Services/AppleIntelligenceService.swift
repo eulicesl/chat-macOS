@@ -19,7 +19,7 @@ import Observation
 /// Service for Apple Intelligence features (iOS 18+)
 /// Currently uses fallback implementations until official APIs are available
 @Observable
-class AppleIntelligenceService {
+final class AppleIntelligenceService: @unchecked Sendable {
     static let shared = AppleIntelligenceService()
 
     // Feature availability
@@ -57,7 +57,7 @@ class AppleIntelligenceService {
     }
 
     /// Rewrite text in different tone
-    func rewriteText(_ text: String, tone: WritingTone) async throws -> WritingToolsResult {
+    func rewriteText(_ text: String, tone: HCWritingTone) async throws -> WritingToolsResult {
         if #available(iOS 18.0, *), writingToolsAvailable {
             return try await nativeRewrite(text, tone: tone)
         } else {
@@ -123,7 +123,7 @@ class AppleIntelligenceService {
     }
 
     @available(iOS 18.0, *)
-    private func nativeRewrite(_ text: String, tone: WritingTone) async throws -> WritingToolsResult {
+    private func nativeRewrite(_ text: String, tone: HCWritingTone) async throws -> WritingToolsResult {
         // TODO: Integrate with Writing Tools API
         /*
          let result = try await WritingTools.rewrite(text, tone: tone.nativeTone)
@@ -204,7 +204,7 @@ class AppleIntelligenceService {
         )
     }
 
-    private func fallbackRewrite(_ text: String, tone: WritingTone) async throws -> WritingToolsResult {
+    private func fallbackRewrite(_ text: String, tone: HCWritingTone) async throws -> WritingToolsResult {
         // Simple tone transformation using NaturalLanguage
         var rewritten = text
 
@@ -338,7 +338,7 @@ struct TextChange {
     }
 }
 
-enum WritingTone {
+enum HCWritingTone {
     case professional
     case friendly
     case concise

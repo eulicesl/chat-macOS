@@ -23,13 +23,15 @@ extension ConversationViewModel {
 
         // Store in memory
         if let conversationId = conversation?.id {
-            MemoryManager.shared.storeConversationMemory(
-                conversationId: conversationId,
-                content: text,
-                context: "Model: \(modelId), WebSearch: \(useWebSearch)",
-                importance: 0.5,
-                tags: extractTags(from: text)
-            )
+            Task {
+                await MemoryManager.shared.storeConversationMemory(
+                    conversationId: conversationId,
+                    content: text,
+                    context: "Model: \(modelId), WebSearch: \(useWebSearch)",
+                    importance: 0.5,
+                    tags: await extractTags(from: text)
+                )
+            }
         }
 
         // Update tips
@@ -40,20 +42,20 @@ extension ConversationViewModel {
         }
     }
 
-    func trackResponseReceived(_ response: String, modelId: String) {
+    func trackResponseReceived(_ response: String, modelId: String) async {
         // Store assistant response in memory
         if let conversationId = conversation?.id {
-            MemoryManager.shared.storeConversationMemory(
+            await MemoryManager.shared.storeConversationMemory(
                 conversationId: conversationId,
                 content: response,
                 context: "Assistant response from \(modelId)",
                 importance: 0.6,
-                tags: extractTags(from: response)
+                tags: await extractTags(from: response)
             )
         }
 
         // Extract and store facts/insights
-        let keywords = SemanticSearch.shared.extractKeywords(from: response, limit: 5)
+        let keywords = await SemanticSearch.shared.extractKeywords(from: response, limit: 5)
 
         for keyword in keywords {
             MemoryManager.shared.storeMemory(Memory(
@@ -110,10 +112,10 @@ extension ConversationViewModel {
         return nil
     }
 
-    func getRelevantMemories(for query: String) -> [Memory] {
+    func getRelevantMemories(for query: String) async -> [Memory] {
         let allMemories = MemoryManager.shared.recentMemories
 
-        return SemanticSearch.shared.searchMemories(
+        return await SemanticSearch.shared.searchMemories(
             query: query,
             in: allMemories,
             limit: 5
@@ -124,27 +126,28 @@ extension ConversationViewModel {
         var enrichedPrompt = prompt
 
         // Get relevant memories
-        let relevantMemories = getRelevantMemories(for: prompt)
+        Task {
+            let relevantMemories = await getRelevantMemories(for: prompt)
+            if !relevantMemories.isEmpty {
+                let memoryContext = relevantMemories
+                    .prefix(3)
+                    .map { "- \($0.content)" }
+                    .joined(separator: "\n")
 
-        if !relevantMemories.isEmpty {
-            let memoryContext = relevantMemories
-                .prefix(3)
-                .map { "- \($0.content)" }
-                .joined(separator: "\n")
-
-            enrichedPrompt += """
+                enrichedPrompt += """
 
 
-            [Context from previous conversations:
-            \(memoryContext)]
-            """
-        }
+                [Context from previous conversations:
+                \(memoryContext)]
+                """
+            }
 
-        // Add device context if relevant
-        let context = ContextProvider.shared.getCurrentContext()
+            // Add device context if relevant
+            let context = ContextProvider.shared.getCurrentContext()
 
-        if context.isLowPowerMode {
-            enrichedPrompt += "\n\n[Note: Device is in low power mode]"
+            if context.isLowPowerMode {
+                enrichedPrompt += "\n\n[Note: Device is in low power mode]"
+            }
         }
 
         return enrichedPrompt
@@ -152,8 +155,8 @@ extension ConversationViewModel {
 
     // MARK: - Private Helpers
 
-    private func extractTags(from text: String) -> [String] {
-        let keywords = SemanticSearch.shared.extractKeywords(from: text, limit: 3)
+    private func extractTags(from text: String) async -> [String] {
+        let keywords = await SemanticSearch.shared.extractKeywords(from: text, limit: 3)
 
         var tags = keywords
 
@@ -169,3 +172,4 @@ extension ConversationViewModel {
         return Array(Set(tags)) // Remove duplicates
     }
 }
+

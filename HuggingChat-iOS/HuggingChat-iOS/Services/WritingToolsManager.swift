@@ -8,8 +8,9 @@
 import SwiftUI
 import NaturalLanguage
 
+@MainActor
 @Observable
-class WritingToolsManager {
+final class WritingToolsManager {
     static let shared = WritingToolsManager()
 
     private init() {}
@@ -178,3 +179,4 @@ enum SentimentScore {
         }
     }
 }
+

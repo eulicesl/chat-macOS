@@ -7,6 +7,7 @@ import Foundation
 import Observation
 
 @Observable
+@MainActor
 class MenuViewModel {
     var conversations: [String: [Conversation]] = [:]
     var currentConversationId: String?
@@ -26,16 +27,12 @@ class MenuViewModel {
         do {
             let fetchedConversations = try await NetworkService.shared.getConversations()
 
-            await MainActor.run {
-                HuggingChatSession.shared.conversations = fetchedConversations
-                self.groupConversationsByDate(fetchedConversations)
-                self.isLoading = false
-            }
+            HuggingChatSession.shared.conversations = fetchedConversations
+            self.groupConversationsByDate(fetchedConversations)
+            self.isLoading = false
         } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
+            self.errorMessage = error.localizedDescription
+            self.isLoading = false
         }
     }
 
@@ -79,14 +76,10 @@ class MenuViewModel {
         do {
             try await NetworkService.shared.deleteConversation(id: conversation.id)
 
-            await MainActor.run {
-                HuggingChatSession.shared.conversations.removeAll { $0.id == conversation.id }
-                self.groupConversationsByDate(HuggingChatSession.shared.conversations)
-            }
+            HuggingChatSession.shared.conversations.removeAll { $0.id == conversation.id }
+            self.groupConversationsByDate(HuggingChatSession.shared.conversations)
         } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-            }
+            self.errorMessage = error.localizedDescription
         }
     }
 }

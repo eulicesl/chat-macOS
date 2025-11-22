@@ -5,11 +5,12 @@
 //  Haptic feedback manager for enhanced tactile experience
 //
 
+import SwiftUI
 import UIKit
 import CoreHaptics
 
 @Observable
-class HapticManager {
+final class HapticManager: @unchecked Sendable {
     static let shared = HapticManager()
 
     private var engine: CHHapticEngine?

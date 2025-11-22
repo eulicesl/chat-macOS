@@ -8,12 +8,14 @@
 
 import SwiftUI
 import VisionKit
+import Vision
 
 /// Service for live text scanning and document capture using VisionKit
 /// Requires iOS 16+ for DataScannerViewController
 @available(iOS 16.0, *)
+@MainActor
 @Observable
-class VisionKitService: NSObject {
+final class VisionKitService: NSObject {
     static let shared = VisionKitService()
 
     // Scanning state
@@ -21,14 +23,8 @@ class VisionKitService: NSObject {
     var recognizedItems: [RecognizedItem] = []
     var lastScannedText: String = ""
 
-    // Supported data types
-    var supportedTextContentTypes: Set<DataScannerViewController.TextContentType> = [
-        .URL, .emailAddress, .phoneNumber, .address, .shipmentTrackingNumber
-    ]
-
     // Callbacks
     var onTextRecognized: ((String) -> Void)?
-    var onItemsRecognized: (([RecognizedItem]) -> Void)?
     var onError: ((Error) -> Void)?
 
     private override init() {
@@ -38,7 +34,7 @@ class VisionKitService: NSObject {
     // MARK: - Availability
 
     /// Checks if data scanner is available on this device
-    static func isSupported() -> Bool {
+    @MainActor static func isSupported() -> Bool {
         if #available(iOS 16.0, *) {
             return DataScannerViewController.isSupported
         }
@@ -46,7 +42,7 @@ class VisionKitService: NSObject {
     }
 
     /// Checks if device is available (not in use)
-    static func isAvailable() -> Bool {
+    @MainActor static func isAvailable() -> Bool {
         if #available(iOS 16.0, *) {
             return DataScannerViewController.isAvailable
         }
@@ -54,32 +50,6 @@ class VisionKitService: NSObject {
     }
 
     // MARK: - Scanner Configuration
-
-    /// Creates a data scanner view controller for live text scanning
-    @MainActor
-    func createTextScanner(
-        recognizedDataTypes: Set<DataScannerViewController.RecognizedDataType> = [.text()],
-        recognizesMultipleItems: Bool = true,
-        isHighlightingEnabled: Bool = true
-    ) -> DataScannerViewController? {
-        guard Self.isSupported() && Self.isAvailable() else {
-            return nil
-        }
-
-        let scanner = DataScannerViewController(
-            recognizedDataTypes: recognizedDataTypes,
-            qualityLevel: .balanced,
-            recognizesMultipleItems: recognizesMultipleItems,
-            isHighFrameRateTrackingEnabled: true,
-            isPinchToZoomEnabled: true,
-            isGuidanceEnabled: true,
-            isHighlightingEnabled: isHighlightingEnabled
-        )
-
-        scanner.delegate = self
-
-        return scanner
-    }
 
     /// Creates a document camera for scanning documents
     @MainActor
@@ -95,16 +65,6 @@ class VisionKitService: NSObject {
     func processRecognizedText(_ text: String) {
         lastScannedText = text
         onTextRecognized?(text)
-
-        // Add to recognized items
-        let item = RecognizedItem(
-            id: UUID(),
-            type: .text,
-            content: text,
-            timestamp: Date()
-        )
-        recognizedItems.append(item)
-        onItemsRecognized?(recognizedItems)
     }
 
     /// Clears recognized items
@@ -114,69 +74,11 @@ class VisionKitService: NSObject {
     }
 }
 
-// MARK: - DataScannerViewControllerDelegate
-
-@available(iOS 16.0, *)
-extension VisionKitService: DataScannerViewControllerDelegate {
-    func dataScanner(_ dataScanner: DataScannerViewController, didTapOn item: RecognizedItem) {
-        switch item {
-        case .text(let text):
-            processRecognizedText(text.transcript)
-        case .barcode(let barcode):
-            if let payload = barcode.payloadStringValue {
-                processRecognizedText(payload)
-            }
-        @unknown default:
-            break
-        }
-    }
-
-    func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {
-        // Process newly added items
-        for item in addedItems {
-            switch item {
-            case .text(let text):
-                let recognizedItem = RecognizedItem(
-                    id: item.id,
-                    type: .text,
-                    content: text.transcript,
-                    timestamp: Date()
-                )
-                recognizedItems.append(recognizedItem)
-            case .barcode(let barcode):
-                if let payload = barcode.payloadStringValue {
-                    let recognizedItem = RecognizedItem(
-                        id: item.id,
-                        type: .barcode,
-                        content: payload,
-                        timestamp: Date()
-                    )
-                    recognizedItems.append(recognizedItem)
-                }
-            @unknown default:
-                break
-            }
-        }
-
-        onItemsRecognized?(recognizedItems)
-    }
-
-    func dataScanner(_ dataScanner: DataScannerViewController, didRemove removedItems: [RecognizedItem], allItems: [RecognizedItem]) {
-        // Update recognized items
-        recognizedItems.removeAll { removedItem in
-            removedItems.contains { $0.id == removedItem.id }
-        }
-    }
-
-    func dataScanner(_ dataScanner: DataScannerViewController, becameUnavailableWithError error: DataScannerViewController.ScanningUnavailable) {
-        onError?(VisionKitError.scanningUnavailable(error))
-    }
-}
-
 // MARK: - VNDocumentCameraViewControllerDelegate
 
 @available(iOS 16.0, *)
-extension VisionKitService: VNDocumentCameraViewControllerDelegate {
+@MainActor
+extension VisionKitService: @preconcurrency VNDocumentCameraViewControllerDelegate {
     func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
         // Process scanned document pages
         for pageIndex in 0..<scan.pageCount {
@@ -255,62 +157,6 @@ enum VisionKitError: Error, LocalizedError {
             return "Data scanning is currently unavailable"
         case .scanningUnavailable(let reason):
             return "Scanning unavailable: \(reason)"
-        }
-    }
-}
-
-// MARK: - SwiftUI Integration
-
-/// SwiftUI wrapper for DataScannerViewController
-@available(iOS 16.0, *)
-struct DataScannerView: UIViewControllerRepresentable {
-    let recognizedDataTypes: Set<DataScannerViewController.RecognizedDataType>
-    let onTextRecognized: (String) -> Void
-
-    func makeUIViewController(context: Context) -> DataScannerViewController {
-        let scanner = DataScannerViewController(
-            recognizedDataTypes: recognizedDataTypes,
-            qualityLevel: .balanced,
-            recognizesMultipleItems: true,
-            isHighFrameRateTrackingEnabled: true,
-            isPinchToZoomEnabled: true,
-            isGuidanceEnabled: true,
-            isHighlightingEnabled: true
-        )
-
-        scanner.delegate = context.coordinator
-
-        try? scanner.startScanning()
-
-        return scanner
-    }
-
-    func updateUIViewController(_ uiViewController: DataScannerViewController, context: Context) {
-        // Update if needed
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onTextRecognized: onTextRecognized)
-    }
-
-    class Coordinator: NSObject, DataScannerViewControllerDelegate {
-        let onTextRecognized: (String) -> Void
-
-        init(onTextRecognized: @escaping (String) -> Void) {
-            self.onTextRecognized = onTextRecognized
-        }
-
-        func dataScanner(_ dataScanner: DataScannerViewController, didTapOn item: RecognizedItem) {
-            switch item {
-            case .text(let text):
-                onTextRecognized(text.transcript)
-            case .barcode(let barcode):
-                if let payload = barcode.payloadStringValue {
-                    onTextRecognized(payload)
-                }
-            @unknown default:
-                break
-            }
         }
     }
 }
